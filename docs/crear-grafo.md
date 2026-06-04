@@ -90,8 +90,8 @@ Define qué entra y qué sale. Convierte el grafo en algo invocable como funció
 }
 ```
 
-- `inputs` → el nodo `Start` expone cada clave como una variable del contexto
-- `outputs` → el nodo `End` recoge esas variables y las devuelve como resultado
+- `inputs` → el nodo `Start` expone cada clave como un **pin de datos de salida** (conectables directamente a otros nodos)
+- `outputs` → el nodo `End` expone cada clave como un **pin de datos de entrada** (recibe el valor por conexión directa)
 
 Para pasar argumentos al grafo al ejecutarlo:
 
@@ -258,8 +258,8 @@ ejecutar nada.
 
 | Nodo | `exec_inputs` | `exec_outputs` | Inputs (datos) | Outputs (datos) |
 |---|---|---|---|---|
-| `Start` | — | `out` | — | los campos de `signature.inputs` |
-| `End` | `in` | — | `result` (opcional) | — |
+| `Start` | — | `out` | — | los campos de `signature.inputs` (dinámicos) |
+| `End` | `in` | — | los campos de `signature.outputs` (dinámicos) | — |
 | `Sequence` | `in` | `1`, `2`, `3` | — | — |
 | `ForEach` | `in` | `body`, `completed` | — | — |
 | `Branch` | `in` | `true`, `false` | `condition: bool` | — |
