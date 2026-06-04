@@ -17,12 +17,17 @@ python -m pytest tests/test_e2e.py
 # Run a single test by name
 python -m pytest tests/test_e2e.py::test_sequence_serial
 
-# Start the API server
-uvicorn flowprint.api:app --reload
+# Launch editor (backend + frontend, opens browser, binds to localhost)
+flowprint editor [--host 127.0.0.1] [--port 8000] [--reload]
+
+# Launch API only, no browser (production / headless)
+flowprint serve [--host 0.0.0.0] [--port 8000] [--reload]
 
 # Build the package
 hatch build
 ```
+
+Both CLI commands must be run from the user's **project folder** — `graphs/` and `custom_nodes/` are created relative to `cwd`.
 
 ## Architecture
 
@@ -51,7 +56,11 @@ JSON graph → Graph.model_validate() → validate_graph() → build_engine() �
 1. `graph/schema.py` — Pydantic models for the JSON graph format (`Graph`, `Instance`, `Connection`, `PinDef`)
 2. `graph/validation.py` — checks pin references, type compatibility, and missing required inputs before execution
 3. `graph/loader.py` — `build_engine()` instantiates nodes from `NODE_REGISTRY`; `run_graph()` is the top-level entry point
-4. `graph/registry.py` — `NODE_REGISTRY` maps string type names to `Node` classes; `load_custom_nodes()` scans `custom_nodes/*.py` at startup
+4. `graph/registry.py` — `NODE_REGISTRY` maps string type names to `Node` classes; `load_custom_nodes()` scans `custom_nodes/*.py` at startup; both `CUSTOM_NODES_DIR` and `GRAPHS_DIR` resolve from `Path.cwd()`
+
+### Start and End pins
+
+`Start` and `End` expose **dynamic pins** based on `graph.signature`. The loader injects `input_names`/`output_names` into their config from the signature — no `GetVar`/`SetVar` needed to access graph inputs/outputs. Validation resolves their effective pins from the signature, not from the class-level Pydantic models.
 
 ### Type System
 
@@ -63,7 +72,7 @@ Data pins carry Python types (primitives or Pydantic `BaseModel` subclasses). `c
 ### Adding a Node
 
 1. Create a class inheriting from `Node` in `src/flowprint/nodes/`.
-2. Define `INPUT_PINS`, `OUTPUT_PINS`, `EXEC_IN_PINS`, `EXEC_OUT_PINS` as class-level `PinDef` lists.
+2. Define inner `Inputs`/`Outputs` Pydantic models and `exec_inputs`/`exec_outputs` tuples.
 3. Set `is_pure = True` for data-only nodes (no side effects, no execution pins).
 4. Implement `async execute(inputs, ctx) -> NodeResult`.
 5. Register it in `src/flowprint/graph/registry.py`.
@@ -72,7 +81,26 @@ See `docs/crear-nodo.md` for examples (pure node, stateful node, branching node)
 
 ### Custom Nodes
 
-Drop a `.py` file in the `custom_nodes/` directory. Any class that inherits from `Node` and is defined in that module is auto-discovered on import. Custom nodes can shadow built-in types (a warning is printed).
+Drop a `.py` file in the `custom_nodes/` directory (relative to cwd). Any class that inherits from `Node` and is defined in that module is auto-discovered on import. Custom nodes can shadow built-in types (a warning is printed). Use `refresh_custom_nodes()` to hot-reload without restarting.
+
+### Graph Persistence
+
+Graphs are stored as JSON files in `graphs/` (relative to cwd), one file per graph named `{name}.json`. Both `graphs/` and `custom_nodes/` are meant to be committed to git alongside the project.
+
+### HTTP API (`src/flowprint/api.py`)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/nodes` | All node types with pin metadata |
+| GET/POST/PUT/DELETE | `/nodes/custom/{name}` | CRUD of custom node source files |
+| GET | `/types/compatibility` | Safe type conversions |
+| POST | `/graph/validate` | Validate a graph inline |
+| WS | `/graph/run/ws` | Execute inline graph, stream events |
+| GET/POST/PUT/DELETE | `/graphs/{name}` | CRUD of persisted graphs |
+| POST | `/graphs/{name}/run` | Execute saved graph, returns final result |
+| WS | `/graphs/{name}/run/ws` | Execute saved graph, stream events |
+
+WebSocket protocol: client sends `{ graph?, args? }`, server emits `node_start`, `node_complete`, `error`, `cancelled`, `graph_complete` and closes.
 
 ### Public API
 
