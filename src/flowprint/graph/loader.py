@@ -32,7 +32,7 @@ def build_engine(graph: Graph, on_event=None) -> Engine:
         (c.from_node, c.from_pin, c.to_node, c.to_pin)
         for c in graph.data_connections()
     ]
-    return Engine(nodes, exec_edges, data_edges)
+    return Engine(nodes, exec_edges, data_edges, on_event=on_event)
 
 
 def find_start(graph: Graph) -> str:

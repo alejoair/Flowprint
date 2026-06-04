@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import ast
+import asyncio
+import json
 from pathlib import Path
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from flowprint.graph.loader import run_graph
+from flowprint.graph.loader import build_engine, find_start, run_graph
 from flowprint.graph.registry import (
     BUILTIN_NODE_NAMES,
     CUSTOM_NODES_DIR,
@@ -174,3 +177,39 @@ async def run(req: RunRequest):
     except ValueError as e:
         raise HTTPException(400, str(e))
     return result
+
+
+@app.post("/graph/run/stream")
+async def run_stream(req: RunRequest):
+    """Ejecuta el grafo y emite cada evento como SSE (text/event-stream)."""
+    try:
+        graph = Graph.model_validate(req.graph)
+    except Exception as e:
+        raise HTTPException(422, str(e))
+
+    try:
+        engine = build_engine(graph)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def on_event(event: dict) -> None:
+        await queue.put(event)
+
+    engine._on_event = on_event
+
+    async def generate() -> AsyncGenerator[str, None]:
+        task = asyncio.create_task(engine.run(find_start(graph), req.args))
+        while True:
+            try:
+                event = await asyncio.wait_for(queue.get(), timeout=0.1)
+                yield f"data: {json.dumps(event)}\n\n"
+                if event.get("event") in ("graph_complete", "error", "cancelled"):
+                    break
+            except asyncio.TimeoutError:
+                if task.done():
+                    break
+        await task
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
