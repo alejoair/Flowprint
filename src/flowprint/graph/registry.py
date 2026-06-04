@@ -10,6 +10,7 @@ from flowprint.nodes.control.sequence import Sequence
 from flowprint.nodes.control.start import Start
 from flowprint.nodes.data.concat import Concat
 from flowprint.nodes.data.const import Const
+from flowprint.nodes.data.conversions import BoolToInt, IntToFloat, ToStr
 from flowprint.nodes.data.equals import Equals
 from flowprint.nodes.data.itemof import ItemOf
 from flowprint.nodes.variables.getvar import GetVar
@@ -26,6 +27,9 @@ NODE_REGISTRY: dict[str, type[Node]] = {
     "Concat": Concat,
     "ItemOf": ItemOf,
     "Equals": Equals,
+    "IntToFloat": IntToFloat,
+    "BoolToInt": BoolToInt,
+    "ToStr": ToStr,
     "GetVar": GetVar,
     "SetVar": SetVar,
     "AgentEcho": AgentEcho,
