@@ -1,9 +1,8 @@
 # Flowprint — Documento de Diseño
 
-**Estado:** todas las decisiones de diseño cerradas + huecos de integración resueltos (firma de Start/End, pin sin conexión, errores en execute). Núcleo programable como Fase 1.
-**Siguiente paso:** llevar los prototipos al repo (estructura de paquete, separar nodos, suite pytest, LLMAgent real). Ver sección 12.
+**Estado:** diseño cerrado e implementado en `src/flowprint/`.
 **Método:** spec-driven. Cada decisión se cerró antes de escribir código, evaluando alternativas.
-**Código de referencia:** `flowprint_node_contract.py`, `flowprint_graph_schema.py`, `flowprint_registry.py`, `flowprint_engine.py` (incluye Get/Set), `flowprint_loader.py`, `test_e2e.py`.
+**Código fuente:** `src/flowprint/` — motor, nodos, validación y cargador. Tests en `tests/`.
 
 ---
 

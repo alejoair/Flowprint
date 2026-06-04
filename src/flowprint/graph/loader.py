@@ -7,7 +7,7 @@ from flowprint.graph.schema import Graph
 from flowprint.graph.validation import validate_graph
 
 
-def build_engine(graph: Graph) -> Engine:
+def build_engine(graph: Graph, on_event=None) -> Engine:
     errors = validate_graph(graph)
     if errors:
         raise ValueError("Grafo inválido:\n  - " + "\n  - ".join(errors))
