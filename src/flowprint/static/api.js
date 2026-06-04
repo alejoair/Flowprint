@@ -5,14 +5,16 @@ export async function fetchGraphs() {
   const r = await fetch("/graphs"); if (!r.ok) throw new Error(r.status); return r.json();
 }
 export async function fetchGraph(name) {
-  const r = await fetch(`/graphs/${name}`); if (!r.ok) throw new Error(r.status); return r.json();
+  const r = await fetch(`/graphs/${name}`); if (!r.ok) throw new Error(r.status);
+  const d = await r.json();
+  return d.graph ?? d;  // server wraps response: {"name":..., "graph":{...}}
 }
 export async function saveGraph(name, graph) {
-  const r = await fetch(`/graphs/${name}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(graph) });
+  const r = await fetch(`/graphs/${name}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ graph }) });
   if (!r.ok) throw new Error(r.status); return r.json();
 }
 export async function createGraph(name, graph) {
-  const r = await fetch(`/graphs/${name}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(graph) });
+  const r = await fetch(`/graphs/${name}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ graph }) });
   if (!r.ok) throw new Error(r.status); return r.json();
 }
 export async function deleteGraph(name) {

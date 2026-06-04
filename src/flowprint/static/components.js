@@ -207,18 +207,21 @@ export function ExecutionPanel({ events, onClose }) {
       </div>
       <div className="exec-body">
         ${events.length === 0 && html`<div className="exec-empty">Press ▶ Run to execute the graph.</div>`}
-        ${events.map((ev, i) => html`
+        ${events.map((ev, i) => {
+          const type = ev.event ?? ev.type ?? "unknown";
+          const nodeId = ev.node ?? ev.node_id;
+          return html`
           <div key=${i} className="exec-event">
             <span style=${{ display:"inline-block", padding:"1px 6px", borderRadius:3, fontSize:10,
-              fontWeight:600, background:EV_COLORS[ev.type]??"#45475a", color:"#1e1e2e", marginRight:6 }}>
-              ${ev.type}
+              fontWeight:600, background:EV_COLORS[type]??"#45475a", color:"#1e1e2e", marginRight:6 }}>
+              ${type}
             </span>
-            ${ev.node_id && html`<span className="exec-node">${ev.node_id} </span>`}
-            ${ev.type === "graph_complete" && ev.result != null &&
+            ${nodeId && html`<span className="exec-node">${nodeId} </span>`}
+            ${type === "graph_complete" && ev.result != null &&
               html`<pre className="exec-result">${JSON.stringify(ev.result, null, 2)}</pre>`}
-            ${ev.type === "error" && ev.message &&
-              html`<span className="exec-error">${ev.message}</span>`}
-          </div>`)}
+            ${type === "error" && (ev.error ?? ev.message) &&
+              html`<span className="exec-error">${ev.error ?? ev.message}</span>`}
+          </div>`})}
         <div ref=${bottom} />
       </div>
     </div>`;
