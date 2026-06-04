@@ -7,6 +7,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class DoOnce(Node):
+    """Activa 'out' solo la primera vez que se alcanza. Las ejecuciones posteriores son ignoradas."""
     class Inputs(BaseModel):
         pass
 

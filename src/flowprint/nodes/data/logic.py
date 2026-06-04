@@ -9,6 +9,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class And(Node):
+    """Devuelve True si a AND b."""
     class Inputs(BaseModel):
         a: bool = False
         b: bool = False
@@ -23,6 +24,7 @@ class And(Node):
 
 
 class Or(Node):
+    """Devuelve True si a OR b."""
     class Inputs(BaseModel):
         a: bool = False
         b: bool = False
@@ -37,6 +39,7 @@ class Or(Node):
 
 
 class Not(Node):
+    """Negación booleana (NOT value)."""
     class Inputs(BaseModel):
         value: bool = False
 

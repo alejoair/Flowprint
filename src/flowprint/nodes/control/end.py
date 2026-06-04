@@ -9,6 +9,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class End(Node):
+    """Punto de salida del grafo. Recoge los valores de retorno por sus pines de datos de entrada. Los nombres vienen de graph.signature.outputs."""
     class Inputs(BaseModel):
         result: Any = None
 

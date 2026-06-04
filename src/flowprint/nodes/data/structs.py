@@ -86,6 +86,7 @@ class SetField(Node):
 
 
 class ParseJSON(Node):
+    """Parsea un string JSON y devuelve el valor Python resultante (dict, list, etc.). Devuelve None si el JSON es inválido."""
     class Inputs(BaseModel):
         text: str = ""
 
@@ -103,6 +104,7 @@ class ParseJSON(Node):
 
 
 class ToJSON(Node):
+    """Serializa un valor Python a string JSON."""
     class Inputs(BaseModel):
         value: Any = None
 

@@ -9,6 +9,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class GreaterThan(Node):
+    """Devuelve True si a > b (float)."""
     class Inputs(BaseModel):
         a: float = 0
         b: float = 0
@@ -23,6 +24,7 @@ class GreaterThan(Node):
 
 
 class LessThan(Node):
+    """Devuelve True si a < b (float)."""
     class Inputs(BaseModel):
         a: float = 0
         b: float = 0
@@ -37,6 +39,7 @@ class LessThan(Node):
 
 
 class GreaterEqual(Node):
+    """Devuelve True si a >= b (float)."""
     class Inputs(BaseModel):
         a: float = 0
         b: float = 0
@@ -51,6 +54,7 @@ class GreaterEqual(Node):
 
 
 class LessEqual(Node):
+    """Devuelve True si a <= b (float)."""
     class Inputs(BaseModel):
         a: float = 0
         b: float = 0
@@ -65,6 +69,7 @@ class LessEqual(Node):
 
 
 class NotEqual(Node):
+    """Devuelve True si a != b (cualquier tipo)."""
     class Inputs(BaseModel):
         a: Any = None
         b: Any = None

@@ -9,6 +9,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class Start(Node):
+    """Punto de entrada del grafo. Expone los argumentos de invocación como pines de datos de salida. Los nombres vienen de graph.signature.inputs."""
     class Inputs(BaseModel):
         pass
 

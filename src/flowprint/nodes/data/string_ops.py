@@ -10,6 +10,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class Contains(Node):
+    """Devuelve True si substring está contenido en text."""
     class Inputs(BaseModel):
         text: str = ""
         substring: str = ""
@@ -24,6 +25,7 @@ class Contains(Node):
 
 
 class Replace(Node):
+    """Reemplaza todas las ocurrencias de old por new en text."""
     class Inputs(BaseModel):
         text: str = ""
         old: str = ""
@@ -39,6 +41,7 @@ class Replace(Node):
 
 
 class Split(Node):
+    """Divide text por separator y devuelve una lista de strings."""
     class Inputs(BaseModel):
         text: str = ""
         separator: str = ","
@@ -54,6 +57,7 @@ class Split(Node):
 
 
 class ToUpper(Node):
+    """Convierte un string a mayúsculas."""
     class Inputs(BaseModel):
         text: str = ""
 
@@ -67,6 +71,7 @@ class ToUpper(Node):
 
 
 class ToLower(Node):
+    """Convierte un string a minúsculas."""
     class Inputs(BaseModel):
         text: str = ""
 
@@ -80,6 +85,7 @@ class ToLower(Node):
 
 
 class Trim(Node):
+    """Elimina espacios (y saltos de línea) al inicio y final del string."""
     class Inputs(BaseModel):
         text: str = ""
 
@@ -93,6 +99,7 @@ class Trim(Node):
 
 
 class StringLength(Node):
+    """Devuelve la longitud en caracteres de un string."""
     class Inputs(BaseModel):
         text: str = ""
 

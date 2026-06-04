@@ -7,6 +7,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class WhileLoop(Node):
+    """Repite el cuerpo mientras condition sea True. La condición se reevalúa en cada iteración."""
     class Inputs(BaseModel):
         condition: bool = False
 

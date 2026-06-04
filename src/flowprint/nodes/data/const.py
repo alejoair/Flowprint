@@ -7,6 +7,10 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class Const(Node):
+    """Emite un valor constante definido en config.value. Output pin: value (str por defecto).
+
+    config.value: el valor a emitir (string).
+    """
     class Inputs(BaseModel):
         pass
 

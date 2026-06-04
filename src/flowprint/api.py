@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute, APIWebSocketRoute
 from fastmcp import FastMCP
 
+from flowprint.mcp_tools import register as register_mcp_tools
 from flowprint.routers.graphs import router as graphs_router
 from flowprint.routers.nodes import router as nodes_router
 
@@ -23,11 +24,12 @@ _api.include_router(nodes_router)
 _api.include_router(graphs_router)
 
 # ---------------------------------------------------------------------------
-# MCP server generated from the REST API
+# MCP server generated from the REST API + curated tools
 # Exposed at /mcp  (streamable-http transport, compatible with MCP clients)
 # ---------------------------------------------------------------------------
 
 _mcp = FastMCP.from_fastapi(app=_api, name="Flowprint")
+register_mcp_tools(_mcp)
 _mcp_app = _mcp.http_app(path="/mcp")
 
 # ---------------------------------------------------------------------------

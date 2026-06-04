@@ -9,6 +9,8 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class Add(Node):
+    """Suma dos floats (a + b)."""
+
     class Inputs(BaseModel):
         a: float = 0
         b: float = 0
@@ -23,6 +25,8 @@ class Add(Node):
 
 
 class Subtract(Node):
+    """Resta dos floats (a - b)."""
+
     class Inputs(BaseModel):
         a: float = 0
         b: float = 0
@@ -37,6 +41,8 @@ class Subtract(Node):
 
 
 class Multiply(Node):
+    """Multiplica dos floats (a * b)."""
+
     class Inputs(BaseModel):
         a: float = 1
         b: float = 1
@@ -51,6 +57,8 @@ class Multiply(Node):
 
 
 class Divide(Node):
+    """Divide a entre b. Devuelve 0.0 si b == 0."""
+
     class Inputs(BaseModel):
         a: float = 0
         b: float = 1
@@ -66,6 +74,8 @@ class Divide(Node):
 
 
 class Modulo(Node):
+    """Resto de la división entera (a % b). Devuelve 0 si b == 0."""
+
     class Inputs(BaseModel):
         a: int = 0
         b: int = 1
@@ -81,6 +91,8 @@ class Modulo(Node):
 
 
 class Abs(Node):
+    """Valor absoluto de un float."""
+
     class Inputs(BaseModel):
         value: float = 0
 
@@ -94,6 +106,8 @@ class Abs(Node):
 
 
 class Min(Node):
+    """Devuelve el menor de dos floats."""
+
     class Inputs(BaseModel):
         a: float = 0
         b: float = 0
@@ -108,6 +122,8 @@ class Min(Node):
 
 
 class Max(Node):
+    """Devuelve el mayor de dos floats."""
+
     class Inputs(BaseModel):
         a: float = 0
         b: float = 0
@@ -122,6 +138,8 @@ class Max(Node):
 
 
 class Clamp(Node):
+    """Limita value al rango [min_val, max_val]."""
+
     class Inputs(BaseModel):
         value: float = 0
         min_val: float = 0
@@ -138,6 +156,8 @@ class Clamp(Node):
 
 
 class Round(Node):
+    """Redondea un float al entero más cercano."""
+
     class Inputs(BaseModel):
         value: float = 0
 
@@ -151,6 +171,8 @@ class Round(Node):
 
 
 class Floor(Node):
+    """Redondea un float hacia abajo (entero inferior)."""
+
     class Inputs(BaseModel):
         value: float = 0
 
@@ -164,6 +186,8 @@ class Floor(Node):
 
 
 class Ceil(Node):
+    """Redondea un float hacia arriba (entero superior)."""
+
     class Inputs(BaseModel):
         value: float = 0
 

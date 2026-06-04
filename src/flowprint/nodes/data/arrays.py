@@ -39,6 +39,7 @@ class MakeList(Node):
 
 
 class GetIndex(Node):
+    """Devuelve el elemento en la posición index de un array. Devuelve None si el índice está fuera de rango."""
     class Inputs(BaseModel):
         array: list = []
         index: int = 0
@@ -57,6 +58,7 @@ class GetIndex(Node):
 
 
 class AppendItem(Node):
+    """Devuelve una nueva lista con item añadido al final (no muta el original)."""
     class Inputs(BaseModel):
         array: list = []
         item: Any = None
@@ -71,6 +73,7 @@ class AppendItem(Node):
 
 
 class ListLength(Node):
+    """Devuelve la cantidad de elementos de un array."""
     class Inputs(BaseModel):
         array: list = []
 
@@ -84,6 +87,7 @@ class ListLength(Node):
 
 
 class ListContains(Node):
+    """Devuelve True si item está presente en el array."""
     class Inputs(BaseModel):
         array: list = []
         item: Any = None

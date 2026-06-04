@@ -7,6 +7,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class ForLoop(Node):
+    """Itera de start a end-1 (exclusive). Emite el índice actual por el pin 'index' en cada vuelta del 'body'."""
     class Inputs(BaseModel):
         start: int = 0
         end: int

@@ -7,6 +7,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class Branch(Node):
+    """Bifurca el flujo según una condición booleana. Activa el pin 'true' o 'false'."""
     class Inputs(BaseModel):
         condition: bool
 

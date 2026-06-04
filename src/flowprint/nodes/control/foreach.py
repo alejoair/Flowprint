@@ -7,6 +7,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class ForEach(Node):
+    """Itera sobre la lista en la variable 'foreach_items'. Activa 'body' por cada elemento, luego 'completed'. Usa ItemOf para leer el elemento actual."""
     class Inputs(BaseModel):
         pass
 
