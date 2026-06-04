@@ -5,17 +5,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Install dev dependencies
+# Install all dependencies
 pip install -e ".[dev]"
 
-# Run all tests
-pytest
+# Run all tests (must use python -m pytest, not bare pytest)
+python -m pytest
 
 # Run a single test file
-pytest tests/test_e2e.py
+python -m pytest tests/test_e2e.py
 
 # Run a single test by name
-pytest tests/test_e2e.py::test_sequence_serial
+python -m pytest tests/test_e2e.py::test_sequence_serial
+
+# Start the API server
+uvicorn flowprint.api:app --reload
 
 # Build the package
 hatch build
