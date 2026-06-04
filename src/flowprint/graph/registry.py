@@ -40,7 +40,7 @@ NODE_REGISTRY: dict[str, type[Node]] = {
 }
 
 BUILTIN_NODE_NAMES: frozenset[str] = frozenset(NODE_REGISTRY)
-CUSTOM_NODES_DIR: Path = Path(__file__).parent.parent.parent.parent / "custom_nodes"
+CUSTOM_NODES_DIR: Path = Path.cwd() / "custom_nodes"
 
 _BUILTIN_NAMES = BUILTIN_NODE_NAMES
 _CUSTOM_NODES_DIR = CUSTOM_NODES_DIR

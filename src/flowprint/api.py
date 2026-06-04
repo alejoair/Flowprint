@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import ast
-import asyncio
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +28,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+GRAPHS_DIR: Path = Path.cwd() / "graphs"
 
 
 def _type_name(t: Any) -> str:
@@ -143,7 +145,85 @@ def type_compatibility():
 
 
 # ---------------------------------------------------------------------------
-# Grafo: validación y ejecución
+# CRUD de grafos persistidos
+# ---------------------------------------------------------------------------
+
+_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
+
+
+def _graph_path(name: str) -> Path:
+    if not _SLUG_RE.match(name):
+        raise HTTPException(
+            400,
+            f"Nombre de grafo inválido: '{name}'. "
+            "Usa solo letras minúsculas, números, guiones y guiones bajos."
+        )
+    return GRAPHS_DIR / f"{name}.json"
+
+
+def _load_graph_file(name: str) -> dict:
+    path = _graph_path(name)
+    if not path.exists():
+        raise HTTPException(404, f"Grafo '{name}' no encontrado.")
+    return json.loads(path.read_text())
+
+
+class SaveGraphRequest(BaseModel):
+    graph: dict
+
+
+@app.get("/graphs")
+def list_graphs():
+    if not GRAPHS_DIR.exists():
+        return []
+    return [
+        {"name": f.stem}
+        for f in sorted(GRAPHS_DIR.glob("*.json"))
+    ]
+
+
+@app.get("/graphs/{name}")
+def get_graph(name: str):
+    return _load_graph_file(name)
+
+
+@app.post("/graphs/{name}", status_code=201)
+def create_graph(name: str, body: SaveGraphRequest):
+    path = _graph_path(name)
+    if path.exists():
+        raise HTTPException(409, f"Ya existe un grafo con el nombre '{name}'.")
+    try:
+        Graph.model_validate(body.graph)
+    except Exception as e:
+        raise HTTPException(422, str(e))
+    GRAPHS_DIR.mkdir(exist_ok=True)
+    path.write_text(json.dumps({"name": name, "graph": body.graph}, indent=2))
+    return {"name": name}
+
+
+@app.put("/graphs/{name}")
+def update_graph(name: str, body: SaveGraphRequest):
+    path = _graph_path(name)
+    if not path.exists():
+        raise HTTPException(404, f"Grafo '{name}' no encontrado.")
+    try:
+        Graph.model_validate(body.graph)
+    except Exception as e:
+        raise HTTPException(422, str(e))
+    path.write_text(json.dumps({"name": name, "graph": body.graph}, indent=2))
+    return {"name": name}
+
+
+@app.delete("/graphs/{name}", status_code=204)
+def delete_graph(name: str):
+    path = _graph_path(name)
+    if not path.exists():
+        raise HTTPException(404, f"Grafo '{name}' no encontrado.")
+    path.unlink()
+
+
+# ---------------------------------------------------------------------------
+# Ejecución de grafo inline (canvas abierto)
 # ---------------------------------------------------------------------------
 
 
@@ -165,35 +245,61 @@ def validate(req: ValidateRequest):
     return {"errors": validate_graph(graph)}
 
 
-@app.post("/graph/run")
-async def run(req: RunRequest):
-    try:
-        graph = Graph.model_validate(req.graph)
-    except Exception as e:
-        raise HTTPException(422, str(e))
-    try:
-        result = await run_graph(graph, req.args)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    return result
-
-
 @app.websocket("/graph/run/ws")
 async def run_ws(ws: WebSocket):
-    """Ejecuta un grafo y emite eventos en tiempo real por WebSocket.
-
-    El cliente envía un mensaje JSON con {graph, args} y recibe un mensaje
-    por evento (node_start, node_complete, error, cancelled, graph_complete).
-    El servidor cierra la conexión al terminar.
-    """
+    """Ejecuta un grafo inline (enviado en el mensaje) via WebSocket."""
     await ws.accept()
     try:
         payload = await ws.receive_json()
     except WebSocketDisconnect:
         return
+    await _execute_ws(ws, payload.get("graph", {}), payload.get("args"))
 
+
+# ---------------------------------------------------------------------------
+# Ejecución de grafo guardado por nombre
+# ---------------------------------------------------------------------------
+
+
+@app.websocket("/graphs/{name}/run/ws")
+async def run_saved_ws(name: str, ws: WebSocket):
+    """Ejecuta un grafo guardado. El cliente solo envía { args: {...} }."""
+    await ws.accept()
     try:
-        graph = Graph.model_validate(payload.get("graph", {}))
+        payload = await ws.receive_json()
+    except WebSocketDisconnect:
+        return
+    try:
+        stored = _load_graph_file(name)
+    except HTTPException as e:
+        await ws.send_json({"event": "error", "error": e.detail})
+        await ws.close()
+        return
+    await _execute_ws(ws, stored["graph"], payload.get("args"))
+
+
+@app.post("/graphs/{name}/run")
+async def run_saved(name: str, body: dict | None = None):
+    """Ejecuta un grafo guardado y devuelve el resultado final."""
+    stored = _load_graph_file(name)
+    try:
+        graph = Graph.model_validate(stored["graph"])
+    except Exception as e:
+        raise HTTPException(422, str(e))
+    try:
+        return await run_graph(graph, (body or {}).get("args"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+# ---------------------------------------------------------------------------
+# Helper compartido de ejecución WebSocket
+# ---------------------------------------------------------------------------
+
+
+async def _execute_ws(ws: WebSocket, graph_dict: dict, args: dict | None):
+    try:
+        graph = Graph.model_validate(graph_dict)
     except Exception as e:
         await ws.send_json({"event": "error", "error": str(e)})
         await ws.close()
@@ -215,7 +321,7 @@ async def run_ws(ws: WebSocket):
     engine._on_event = on_event
 
     try:
-        await engine.run(find_start(graph), payload.get("args"))
+        await engine.run(find_start(graph), args)
     except Exception as e:
         await ws.send_json({"event": "error", "error": repr(e)})
     finally:
