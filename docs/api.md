@@ -6,6 +6,21 @@ La API está disponible en `http://localhost:8000` cuando el servidor está corr
 
 No hay autenticación. Todos los endpoints aceptan y devuelven `application/json`.
 
+## MCP (Model Context Protocol)
+
+El servidor expone también un endpoint MCP en `/mcp` que permite a clientes LLM consumir
+la API directamente como herramientas. El transporte es **Streamable HTTP** (protocolo MCP
+estándar, compatible con Claude Desktop, Cursor y cualquier cliente MCP).
+
+```
+http://localhost:8000/mcp
+```
+
+El servidor MCP se genera automáticamente desde la API REST, por lo que todos los endpoints
+REST están disponibles como herramientas MCP sin configuración adicional.
+
+---
+
 ---
 
 ## Nodos
