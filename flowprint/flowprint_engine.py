@@ -152,11 +152,21 @@ class AgentEcho(Node):
 # Motor — interpreta SOLO el vocabulario de control. Cero isinstance de nodos.
 # ===========================================================================
 class Engine:
-    def __init__(self, nodes, exec_edges, data_edges):
+    def __init__(self, nodes, exec_edges, data_edges, on_event=None):
         self.nodes = nodes
         self.exec_edges = exec_edges
         self.data_edges = data_edges
         self.ctx = ExecutionContext()
+        self._on_event = on_event   # async callable(dict) | None
+        self._cancelled = False
+
+    def cancel(self) -> None:
+        """Señala al motor que debe detenerse en la próxima iteración."""
+        self._cancelled = True
+
+    async def _emit(self, event: dict) -> None:
+        if self._on_event:
+            await self._on_event(event)
 
     async def _resolve_inputs(self, node_id):
         values = {}
@@ -175,7 +185,6 @@ class Engine:
         return getattr(produced, pin) if produced is not None else None
 
     def _targets(self, node_id, pins):
-        # destinos de ejecución de una lista de pines, en orden de los pines
         out = []
         for pin in pins:
             for (fn, fp, tn, tp) in self.exec_edges:
@@ -188,36 +197,48 @@ class Engine:
             self.ctx.set_var("__args__", args)
         stack = [start_id]
         while stack:
+            if self._cancelled:
+                await self._emit({"event": "cancelled"})
+                return {"__cancelled__": True}
+
             node_id = stack.pop()
             node = self.nodes[node_id]
+
+            await self._emit({"event": "node_start", "node": node_id})
             try:
                 inputs = await self._resolve_inputs(node_id)
                 result = await node.execute(node.Inputs(**inputs), self.ctx)
             except Exception as exc:
-                # Política v1: no reintentar. Registrar el fallo con el id del nodo
-                # y detener la ejecución devolviendo un error claro.
-                self.ctx.set_var("__error__", {"node": node_id, "error": repr(exc)})
-                return {"__error__": {"node": node_id, "error": repr(exc)}}
+                error = {"node": node_id, "error": repr(exc)}
+                self.ctx.set_var("__error__", error)
+                await self._emit({"event": "error", **error})
+                return {"__error__": error}
+
             self.ctx.node_state(node_id)["__out__"] = result.data
+            await self._emit({
+                "event": "node_complete",
+                "node": node_id,
+                "outputs": result.data.model_dump(),
+            })
 
             # --- interpretar la instrucción de control, sin conocer el tipo del nodo ---
             ctrl = result.control
             if isinstance(ctrl, Stop):
                 continue
             elif isinstance(ctrl, Goto):
-                # serial (LIFO): apilar destinos en orden inverso
                 for nxt in reversed(self._targets(node_id, ctrl.pins)):
                     stack.append(nxt)
             elif isinstance(ctrl, Repeat):
-                # reencolar el nodo emisor, luego su cuerpo (cuerpo corre antes por LIFO)
                 stack.append(node_id)
                 for nxt in reversed(self._targets(node_id, ctrl.pins)):
                     stack.append(nxt)
             elif isinstance(ctrl, Fork):
-                # paralelo (no v1): por ahora serial; aquí iría asyncio.gather
                 for nxt in reversed(self._targets(node_id, ctrl.pins)):
                     stack.append(nxt)
-        return self.ctx.get_var("__result__")
+
+        result = self.ctx.get_var("__result__")
+        await self._emit({"event": "graph_complete", "result": result})
+        return result
 
 
 # ===========================================================================
