@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.routing import APIRoute, APIWebSocketRoute
+from fastapi.staticfiles import StaticFiles
 from fastmcp import FastMCP
 
 from flowprint.mcp_tools import register as register_mcp_tools
 from flowprint.routers.graphs import router as graphs_router
 from flowprint.routers.nodes import router as nodes_router
+
+_STATIC_DIR = Path(__file__).parent / "static"
 
 # ---------------------------------------------------------------------------
 # Core REST API
@@ -50,3 +56,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ---------------------------------------------------------------------------
+# Static frontend — only mounted when the build exists
+# ---------------------------------------------------------------------------
+
+if _STATIC_DIR.is_dir():
+    app.mount("/assets", StaticFiles(directory=_STATIC_DIR / "assets"), name="assets")
+
+    @app.get("/", include_in_schema=False)
+    async def _index():
+        return FileResponse(_STATIC_DIR / "index.html")

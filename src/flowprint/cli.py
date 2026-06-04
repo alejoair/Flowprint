@@ -36,6 +36,15 @@ def _run(host: str, port: int, reload: bool, open_browser: bool) -> None:
         print("Error: uvicorn no está instalado. Ejecuta: pip install flowprint")
         sys.exit(1)
 
+    from pathlib import Path
+    static_index = Path(__file__).parent / "static" / "index.html"
+    if open_browser and not static_index.exists():
+        print(
+            "Warning: frontend not built. Run:\n"
+            "  cd ui && npm install && npm run build\n"
+            "to build it before launching the editor."
+        )
+
     if open_browser:
         import threading
         import webbrowser
