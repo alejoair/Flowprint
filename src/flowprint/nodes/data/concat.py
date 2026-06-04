@@ -7,6 +7,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class Concat(Node):
+    """Concatena dos strings (a + b). Output pin: value."""
     class Inputs(BaseModel):
         a: str
         b: str

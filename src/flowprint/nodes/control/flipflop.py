@@ -7,6 +7,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class FlipFlop(Node):
+    """Alterna entre salidas 'a' y 'b' en cada ejecución."""
     class Inputs(BaseModel):
         pass
 

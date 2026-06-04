@@ -1,20 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel
 
-from flowprint.core.control import Goto
+from flowprint.core.control import Goto, Stop
 from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
-class SetVar(Node):
-    """Escribe un valor en una variable nombrada del contexto de ejecución.
-
-    config.var: nombre de la variable a escribir.
-    """
+class DoOnce(Node):
+    """Activa 'out' solo la primera vez que se alcanza. Las ejecuciones posteriores son ignoradas."""
     class Inputs(BaseModel):
-        value: Any = None
+        pass
 
     class Outputs(BaseModel):
         pass
@@ -24,5 +19,8 @@ class SetVar(Node):
     is_pure = False
 
     async def execute(self, inputs: Inputs, ctx: ExecutionContext) -> NodeResult:
-        ctx.set_var(self.config.get("var"), inputs.value)
+        st = ctx.node_state(self.instance_id)
+        if st.get("done"):
+            return NodeResult(self.Outputs(), Stop())
+        st["done"] = True
         return NodeResult(self.Outputs(), Goto(["out"]))

@@ -1,0 +1,88 @@
+{
+  "name": "hola-mundo",
+  "graph": {
+    "schema_version": "1.0",
+    "signature": {
+      "inputs": {
+        "nombre": "str"
+      },
+      "outputs": {
+        "saludo": "str"
+      }
+    },
+    "variables": [],
+    "instances": [
+      {
+        "id": "start",
+        "type": "Start",
+        "config": {}
+      },
+      {
+        "id": "c_pre",
+        "type": "Const",
+        "config": {
+          "value": "Hola, "
+        }
+      },
+      {
+        "id": "concat",
+        "type": "Concat",
+        "config": {}
+      },
+      {
+        "id": "echo",
+        "type": "AgentEcho",
+        "config": {}
+      },
+      {
+        "id": "end",
+        "type": "End",
+        "config": {}
+      }
+    ],
+    "connections": [
+      {
+        "kind": "exec",
+        "from_node": "start",
+        "from_pin": "out",
+        "to_node": "echo",
+        "to_pin": "in"
+      },
+      {
+        "kind": "exec",
+        "from_node": "echo",
+        "from_pin": "out",
+        "to_node": "end",
+        "to_pin": "in"
+      },
+      {
+        "kind": "data",
+        "from_node": "c_pre",
+        "from_pin": "value",
+        "to_node": "concat",
+        "to_pin": "a"
+      },
+      {
+        "kind": "data",
+        "from_node": "start",
+        "from_pin": "nombre",
+        "to_node": "concat",
+        "to_pin": "b"
+      },
+      {
+        "kind": "data",
+        "from_node": "concat",
+        "from_pin": "value",
+        "to_node": "echo",
+        "to_pin": "text"
+      },
+      {
+        "kind": "data",
+        "from_node": "echo",
+        "from_pin": "reply",
+        "to_node": "end",
+        "to_pin": "saludo"
+      }
+    ]
+  }
+}

@@ -7,6 +7,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class Sequence(Node):
+    """Activa las salidas 1, 2 y 3 en orden serial. La rama 1 se agota antes de activar la 2."""
     class Inputs(BaseModel):
         pass
 
