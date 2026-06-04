@@ -26,6 +26,16 @@ def check_type_compat(src_t: type, dst_t: type) -> tuple[str, str | None]:
     return ("incompatible", None)
 
 
+def _effective_exec_outputs(cls, inst) -> tuple[str, ...]:
+    """Exec output pins for a node, resolving dynamic configs (Switch*)."""
+    if getattr(cls, "_dynamic_exec", False):
+        try:
+            return cls(inst.id, inst.config).exec_outputs
+        except Exception:
+            pass
+    return cls.exec_outputs
+
+
 def _effective_output_pins(cls, inst, graph: Graph) -> set[str]:
     """Pin names a node exposes as data outputs, accounting for dynamic models."""
     if cls.__name__ == "Start":
@@ -67,7 +77,7 @@ def validate_graph(graph: Graph) -> list[str]:
             dst = NODE_REGISTRY.get(dst_inst.type)
             if src and dst:
                 if c.kind == "exec":
-                    if c.from_pin not in src.exec_outputs:
+                    if c.from_pin not in _effective_exec_outputs(src, src_inst):
                         errors.append(f"'{c.from_node}' no tiene pin exec de salida '{c.from_pin}'.")
                     if c.to_pin not in dst.exec_inputs:
                         errors.append(f"'{c.to_node}' no tiene pin exec de entrada '{c.to_pin}'.")

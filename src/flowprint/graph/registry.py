@@ -7,35 +7,108 @@ from pathlib import Path
 from flowprint.core.node import Node
 from flowprint.nodes.agents.echo import AgentEcho
 from flowprint.nodes.control.branch import Branch
+from flowprint.nodes.control.doonce import DoOnce
 from flowprint.nodes.control.end import End
 from flowprint.nodes.control.flipflop import FlipFlop
 from flowprint.nodes.control.foreach import ForEach
+from flowprint.nodes.control.forloop import ForLoop
+from flowprint.nodes.control.select import Select
 from flowprint.nodes.control.sequence import Sequence
 from flowprint.nodes.control.start import Start
+from flowprint.nodes.control.switch import SwitchInt, SwitchString
+from flowprint.nodes.control.whileloop import WhileLoop
+from flowprint.nodes.data.arrays import AppendItem, GetIndex, ListContains, ListLength, MakeList
+from flowprint.nodes.data.comparison import GreaterEqual, GreaterThan, LessEqual, LessThan, NotEqual
 from flowprint.nodes.data.concat import Concat
 from flowprint.nodes.data.const import Const
 from flowprint.nodes.data.conversions import BoolToInt, IntToFloat, ToStr
 from flowprint.nodes.data.equals import Equals
 from flowprint.nodes.data.itemof import ItemOf
+from flowprint.nodes.data.logic import And, IsValid, Not, Or
+from flowprint.nodes.data.math_ops import (
+    Abs, Add, Ceil, Clamp, Divide, Floor, Max, Min, Modulo, Multiply, Round, Subtract,
+)
+from flowprint.nodes.data.string_ops import (
+    BuildString, Contains, Replace, Split, StringLength, Trim, ToLower, ToUpper,
+)
+from flowprint.nodes.data.structs import GetField, MakeDict, ParseJSON, SetField, ToJSON
+from flowprint.nodes.utils.log import Log
 from flowprint.nodes.variables.getvar import GetVar
 from flowprint.nodes.variables.setvar import SetVar
 
 NODE_REGISTRY: dict[str, type[Node]] = {
+    # Control
     "Start": Start,
     "End": End,
     "Sequence": Sequence,
     "ForEach": ForEach,
+    "ForLoop": ForLoop,
+    "WhileLoop": WhileLoop,
     "Branch": Branch,
     "FlipFlop": FlipFlop,
+    "DoOnce": DoOnce,
+    "Select": Select,
+    "SwitchString": SwitchString,
+    "SwitchInt": SwitchInt,
+    # Logic
+    "And": And,
+    "Or": Or,
+    "Not": Not,
+    "IsValid": IsValid,
+    # Comparison
+    "Equals": Equals,
+    "NotEqual": NotEqual,
+    "GreaterThan": GreaterThan,
+    "LessThan": LessThan,
+    "GreaterEqual": GreaterEqual,
+    "LessEqual": LessEqual,
+    # Math
+    "Add": Add,
+    "Subtract": Subtract,
+    "Multiply": Multiply,
+    "Divide": Divide,
+    "Modulo": Modulo,
+    "Abs": Abs,
+    "Min": Min,
+    "Max": Max,
+    "Clamp": Clamp,
+    "Round": Round,
+    "Floor": Floor,
+    "Ceil": Ceil,
+    # Data
     "Const": Const,
     "Concat": Concat,
     "ItemOf": ItemOf,
-    "Equals": Equals,
     "IntToFloat": IntToFloat,
     "BoolToInt": BoolToInt,
     "ToStr": ToStr,
+    # Strings
+    "Contains": Contains,
+    "Replace": Replace,
+    "Split": Split,
+    "ToUpper": ToUpper,
+    "ToLower": ToLower,
+    "Trim": Trim,
+    "StringLength": StringLength,
+    "BuildString": BuildString,
+    # Arrays
+    "MakeList": MakeList,
+    "GetIndex": GetIndex,
+    "AppendItem": AppendItem,
+    "ListLength": ListLength,
+    "ListContains": ListContains,
+    # Structs / JSON
+    "GetField": GetField,
+    "MakeDict": MakeDict,
+    "SetField": SetField,
+    "ParseJSON": ParseJSON,
+    "ToJSON": ToJSON,
+    # Variables
     "GetVar": GetVar,
     "SetVar": SetVar,
+    # Utils
+    "Log": Log,
+    # Agents
     "AgentEcho": AgentEcho,
 }
 
