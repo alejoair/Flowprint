@@ -17,17 +17,12 @@ python -m pytest tests/test_e2e.py
 # Run a single test by name
 python -m pytest tests/test_e2e.py::test_sequence_serial
 
-# Build the frontend (required before running the editor)
-cd ui && npm install && npm run build
-
 # Launch editor (backend + frontend, opens browser, binds to localhost)
+# No build step needed — frontend is plain HTML/JS served directly.
 flowprint editor [--host 127.0.0.1] [--port 8000] [--reload]
 
 # Launch API only, no browser (production / headless)
 flowprint serve [--host 0.0.0.0] [--port 8000] [--reload]
-
-# Frontend dev server (proxies API to localhost:8000, hot-reload)
-cd ui && npm run dev
 
 # Build the package
 hatch build

@@ -58,11 +58,11 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------------------------
-# Static frontend — only mounted when the build exists
+# Static frontend — served at /ui/, index at /
 # ---------------------------------------------------------------------------
 
-if _STATIC_DIR.is_dir():
-    app.mount("/assets", StaticFiles(directory=_STATIC_DIR / "assets"), name="assets")
+if (_STATIC_DIR / "index.html").exists():
+    app.mount("/ui", StaticFiles(directory=_STATIC_DIR), name="static")
 
     @app.get("/", include_in_schema=False)
     async def _index():
