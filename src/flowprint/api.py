@@ -4,11 +4,10 @@ import ast
 import asyncio
 import json
 from pathlib import Path
-from typing import Any, AsyncGenerator
+from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from flowprint.graph.loader import build_engine, find_start, run_graph
@@ -179,37 +178,45 @@ async def run(req: RunRequest):
     return result
 
 
-@app.post("/graph/run/stream")
-async def run_stream(req: RunRequest):
-    """Ejecuta el grafo y emite cada evento como SSE (text/event-stream)."""
+@app.websocket("/graph/run/ws")
+async def run_ws(ws: WebSocket):
+    """Ejecuta un grafo y emite eventos en tiempo real por WebSocket.
+
+    El cliente envía un mensaje JSON con {graph, args} y recibe un mensaje
+    por evento (node_start, node_complete, error, cancelled, graph_complete).
+    El servidor cierra la conexión al terminar.
+    """
+    await ws.accept()
     try:
-        graph = Graph.model_validate(req.graph)
+        payload = await ws.receive_json()
+    except WebSocketDisconnect:
+        return
+
+    try:
+        graph = Graph.model_validate(payload.get("graph", {}))
     except Exception as e:
-        raise HTTPException(422, str(e))
+        await ws.send_json({"event": "error", "error": str(e)})
+        await ws.close()
+        return
 
     try:
         engine = build_engine(graph)
     except ValueError as e:
-        raise HTTPException(400, str(e))
-
-    queue: asyncio.Queue = asyncio.Queue()
+        await ws.send_json({"event": "error", "error": str(e)})
+        await ws.close()
+        return
 
     async def on_event(event: dict) -> None:
-        await queue.put(event)
+        try:
+            await ws.send_json(event)
+        except Exception:
+            engine.cancel()
 
     engine._on_event = on_event
 
-    async def generate() -> AsyncGenerator[str, None]:
-        task = asyncio.create_task(engine.run(find_start(graph), req.args))
-        while True:
-            try:
-                event = await asyncio.wait_for(queue.get(), timeout=0.1)
-                yield f"data: {json.dumps(event)}\n\n"
-                if event.get("event") in ("graph_complete", "error", "cancelled"):
-                    break
-            except asyncio.TimeoutError:
-                if task.done():
-                    break
-        await task
-
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    try:
+        await engine.run(find_start(graph), payload.get("args"))
+    except Exception as e:
+        await ws.send_json({"event": "error", "error": repr(e)})
+    finally:
+        await ws.close()
