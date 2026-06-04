@@ -5,11 +5,27 @@ from flowprint.core.node import ExecutionContext, Node
 
 
 class Engine:
-    def __init__(self, nodes: dict[str, Node], exec_edges: list, data_edges: list) -> None:
+    def __init__(
+        self,
+        nodes: dict[str, Node],
+        exec_edges: list,
+        data_edges: list,
+        on_event=None,
+    ) -> None:
         self.nodes = nodes
         self.exec_edges = exec_edges
         self.data_edges = data_edges
         self.ctx = ExecutionContext()
+        self._on_event = on_event   # async callable(dict) | None
+        self._cancelled = False
+
+    def cancel(self) -> None:
+        """Señala al motor que se detenga en la próxima iteración."""
+        self._cancelled = True
+
+    async def _emit(self, event: dict) -> None:
+        if self._on_event:
+            await self._on_event(event)
 
     async def _resolve_inputs(self, node_id: str) -> dict:
         values = {}
@@ -40,15 +56,29 @@ class Engine:
             self.ctx.set_var("__args__", args)
         stack = [start_id]
         while stack:
+            if self._cancelled:
+                await self._emit({"event": "cancelled"})
+                return {"__cancelled__": True}
+
             node_id = stack.pop()
             node = self.nodes[node_id]
+
+            await self._emit({"event": "node_start", "node": node_id})
             try:
                 inputs = await self._resolve_inputs(node_id)
                 result = await node.execute(node.Inputs(**inputs), self.ctx)
             except Exception as exc:
-                self.ctx.set_var("__error__", {"node": node_id, "error": repr(exc)})
-                return {"__error__": {"node": node_id, "error": repr(exc)}}
+                error = {"node": node_id, "error": repr(exc)}
+                self.ctx.set_var("__error__", error)
+                await self._emit({"event": "error", **error})
+                return {"__error__": error}
+
             self.ctx.node_state(node_id)["__out__"] = result.data
+            await self._emit({
+                "event": "node_complete",
+                "node": node_id,
+                "outputs": result.data.model_dump(),
+            })
 
             ctrl = result.control
             if isinstance(ctrl, Stop):
@@ -63,4 +93,7 @@ class Engine:
             elif isinstance(ctrl, Fork):
                 for nxt in reversed(self._targets(node_id, ctrl.pins)):
                     stack.append(nxt)
-        return self.ctx.get_var("__result__")
+
+        result = self.ctx.get_var("__result__")
+        await self._emit({"event": "graph_complete", "result": result})
+        return result
