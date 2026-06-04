@@ -39,8 +39,11 @@ NODE_REGISTRY: dict[str, type[Node]] = {
     "AgentEcho": AgentEcho,
 }
 
-_BUILTIN_NAMES = frozenset(NODE_REGISTRY)
-_CUSTOM_NODES_DIR = Path(__file__).parent.parent.parent.parent / "custom_nodes"
+BUILTIN_NODE_NAMES: frozenset[str] = frozenset(NODE_REGISTRY)
+CUSTOM_NODES_DIR: Path = Path(__file__).parent.parent.parent.parent / "custom_nodes"
+
+_BUILTIN_NAMES = BUILTIN_NODE_NAMES
+_CUSTOM_NODES_DIR = CUSTOM_NODES_DIR
 
 
 def load_custom_nodes(folder: Path | str | None = None) -> dict[str, type[Node]]:

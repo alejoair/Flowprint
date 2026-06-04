@@ -9,6 +9,8 @@ description = "Motor de orquestación multiagente estilo Blueprint de Unreal Eng
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.0",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.29",
 ]
 
 [project.optional-dependencies]
