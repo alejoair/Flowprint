@@ -45,7 +45,9 @@ class MiAgente(Node):
 
 ### 3. Registrar el nodo
 
-Añade el tipo al registro en `src/flowprint/graph/registry.py`:
+**Nodo custom** (archivo en `custom_nodes/`): no hace falta nada. Flowprint lo descubre automáticamente al arrancar y lo añade al registro.
+
+**Nodo built-in** (archivo en `src/flowprint/nodes/`): añádelo manualmente en `src/flowprint/graph/registry.py`:
 
 ```python
 from flowprint.nodes.agents.mi_agente import MiAgente

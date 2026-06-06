@@ -9,6 +9,9 @@ description = "Motor de orquestación multiagente estilo Blueprint de Unreal Eng
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.0",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.29",
+    "fastmcp>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -16,6 +19,9 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
 ]
+
+[project.scripts]
+flowprint = "flowprint.cli:main"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

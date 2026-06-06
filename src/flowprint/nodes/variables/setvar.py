@@ -9,6 +9,10 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class SetVar(Node):
+    """Escribe un valor en una variable nombrada del contexto de ejecución.
+
+    config.var: nombre de la variable a escribir.
+    """
     class Inputs(BaseModel):
         value: Any = None
 

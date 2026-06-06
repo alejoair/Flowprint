@@ -9,6 +9,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class AgentEcho(Node):
+    """Agente de ejemplo que devuelve 'echo:{text}'. Útil para pruebas y demos."""
     class Inputs(BaseModel):
         text: str
 

@@ -7,6 +7,10 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class ItemOf(Node):
+    """Devuelve el elemento actual de una iteración ForEach.
+
+    config.foreach_id: id de instancia del nodo ForEach al que está ligado.
+    """
     class Inputs(BaseModel):
         pass
 

@@ -7,6 +7,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class Equals(Node):
+    """Compara dos strings: devuelve True si a == b."""
     class Inputs(BaseModel):
         a: str
         b: str

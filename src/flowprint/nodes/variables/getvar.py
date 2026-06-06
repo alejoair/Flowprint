@@ -9,6 +9,10 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class GetVar(Node):
+    """Lee una variable nombrada del contexto de ejecución.
+
+    config.var: nombre de la variable a leer.
+    """
     class Inputs(BaseModel):
         pass
 

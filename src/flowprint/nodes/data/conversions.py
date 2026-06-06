@@ -9,6 +9,7 @@ from flowprint.core.node import ExecutionContext, Node, NodeResult
 
 
 class IntToFloat(Node):
+    """Convierte int a float."""
     class Inputs(BaseModel):
         value: int
 
@@ -22,6 +23,7 @@ class IntToFloat(Node):
 
 
 class BoolToInt(Node):
+    """Convierte bool a int (True → 1, False → 0)."""
     class Inputs(BaseModel):
         value: bool
 
