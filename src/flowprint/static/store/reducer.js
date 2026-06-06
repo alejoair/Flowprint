@@ -65,6 +65,9 @@ export function reducer(state, { type, payload }) {
     case A.NODE_EDITOR_CLOSE:
       return { ...state, nodeEditorOpen: false };
 
+    case A.SIGNATURE_CHANGED:
+      return { ...state, signature: payload, dirty: true };
+
     default:
       return state;
   }
