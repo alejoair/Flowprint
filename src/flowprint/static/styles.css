@@ -165,3 +165,14 @@ html, body, #root {
 .cm-host .cm-editor {
   height: 100%;
 }
+
+/* Signature editor modal */
+.sig-panel { width: 520px; height: auto; }
+.sig-body { display: flex; flex: 1; gap: 12px; padding: 12px; overflow: auto; }
+.sig-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.sig-col-header { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #6c6c7a; margin-bottom: 8px; }
+.sig-rows { display: flex; flex-direction: column; gap: 4px; }
+.sig-row { display: flex; align-items: center; gap: 4px; }
+.sig-type { width: 70px; flex-shrink: 0; }
+.sig-divider { width: 1px; background: #45475a; flex-shrink: 0; margin: 0 4px; }
+.sig-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 12px; border-top: 1px solid #45475a; flex-shrink: 0; }

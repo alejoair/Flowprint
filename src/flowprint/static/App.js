@@ -20,6 +20,7 @@ import { Sidebar }            from "./components/panels/Sidebar.js";
 import { ConfigPanel }        from "./components/panels/ConfigPanel.js";
 import { ExecutionPanel }     from "./components/panels/ExecutionPanel.js";
 import { CustomNodeEditor }   from "./components/panels/CustomNodeEditor.js";
+import { SignatureEditor }    from "./components/panels/SignatureEditor.js";
 import { Toolbar }            from "./components/toolbar/Toolbar.js";
 import { KeybindHandler }     from "./components/shared/KeybindHandler.js";
 
@@ -39,7 +40,8 @@ export default function App() {
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [rfi,   setRfi] = useState(null);
+  const [rfi,   setRfi]          = useState(null);
+  const [showSigEditor, setSig]  = useState(false);
   const wrapRef = useRef(null);
 
   useEffect(() => { persistence.loadList(); }, []);
@@ -86,6 +88,30 @@ export default function App() {
 
   function handleRun() {
     execution.run(toFlowprintGraph(nodes, edges, state.signature), {});
+  }
+
+  function handleSignatureChange(newSig) {
+    dispatch({ type: A.SIGNATURE_CHANGED, payload: newSig });
+
+    // Sync Start/End pin lists on canvas
+    setNodes(nds => nds.map(n => {
+      if (n.data.nodeType === "Start")
+        return { ...n, data: { ...n.data, dataOutputs: { ...newSig.inputs } } };
+      if (n.data.nodeType === "End")
+        return { ...n, data: { ...n.data, dataInputs: { ...newSig.outputs } } };
+      return n;
+    }));
+
+    // Drop edges connected to pins that no longer exist
+    const startIds    = new Set(nodes.filter(n => n.data.nodeType === "Start").map(n => n.id));
+    const endIds      = new Set(nodes.filter(n => n.data.nodeType === "End").map(n => n.id));
+    const validStart  = new Set(["out", ...Object.keys(newSig.inputs)]);
+    const validEnd    = new Set(["in",  ...Object.keys(newSig.outputs)]);
+    setEdges(eds => eds.filter(e => {
+      if (startIds.has(e.source) && !validStart.has(e.sourceHandle)) return false;
+      if (endIds.has(e.target)   && !validEnd.has(e.targetHandle))   return false;
+      return true;
+    }));
   }
 
   // ── React Flow callbacks ──────────────────────────
@@ -149,6 +175,7 @@ export default function App() {
         onRun=${handleRun}
         onStop=${execution.cancel}
         onOpenNodeEditor=${() => dispatch({ type: A.NODE_EDITOR_OPEN })}
+        onOpenSigEditor=${() => setSig(true)}
       />
 
       <div className="canvas-wrap">
@@ -202,6 +229,13 @@ export default function App() {
           onSave=${customNodes.save}
           onDelete=${customNodes.remove}
           onClose=${() => dispatch({ type: A.NODE_EDITOR_CLOSE })}
+        />`}
+
+      ${showSigEditor && html`
+        <${SignatureEditor}
+          signature=${state.signature}
+          onApply=${handleSignatureChange}
+          onClose=${() => setSig(false)}
         />`}
     </div>`;
 }
