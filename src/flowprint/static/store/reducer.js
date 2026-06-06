@@ -10,6 +10,8 @@ export const INITIAL_STATE = {
   running:        false,
   execEvents:     [],
   showExecPanel:  false,
+  customNodes:    [],
+  nodeEditorOpen: false,
 };
 
 export function reducer(state, { type, payload }) {
@@ -53,6 +55,15 @@ export function reducer(state, { type, payload }) {
 
     case A.EXEC_PANEL_TOGGLE:
       return { ...state, showExecPanel: !state.showExecPanel };
+
+    case A.CUSTOM_NODES_LOADED:
+      return { ...state, customNodes: payload };
+
+    case A.NODE_EDITOR_OPEN:
+      return { ...state, nodeEditorOpen: true };
+
+    case A.NODE_EDITOR_CLOSE:
+      return { ...state, nodeEditorOpen: false };
 
     default:
       return state;

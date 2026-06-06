@@ -6,12 +6,12 @@ import { A } from "../store/actions.js";
 export function useCatalog() {
   const { state, dispatch } = useStore();
 
-  useEffect(() => {
-    if (state.catalog.length > 0) return;
-    fetchCatalog()
-      .then(d => dispatch({ type: A.CATALOG_LOADED, payload: Array.isArray(d) ? d : d.nodes ?? [] }))
-      .catch(console.error);
-  }, []);
+  async function load() {
+    const d = await fetchCatalog();
+    dispatch({ type: A.CATALOG_LOADED, payload: Array.isArray(d) ? d : d.nodes ?? [] });
+  }
 
-  return state.catalog;
+  useEffect(() => { if (state.catalog.length === 0) load(); }, []);
+
+  return { catalog: state.catalog, reloadCatalog: load };
 }

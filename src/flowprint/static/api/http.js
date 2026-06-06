@@ -16,3 +16,10 @@ export const createGraph   = (name, graph) => _fetch(`/graphs/${name}`, { method
 export const saveGraph     = (name, graph) => _fetch(`/graphs/${name}`, { method: "PUT",  ...json({ graph }) });
 export const deleteGraph   = name => _fetch(`/graphs/${name}`, { method: "DELETE" });
 export const validateGraph = graph => _fetch("/graph/validate", { method: "POST", ...json({ graph }) });
+
+// Custom nodes
+export const fetchCustomNodes   = () => _fetch("/nodes/custom");
+export const fetchCustomNode    = name => _fetch(`/nodes/custom/${name}`);
+export const createCustomNode   = (name, source) => _fetch(`/nodes/custom/${name}`, { method: "POST", ...json({ source }) });
+export const updateCustomNode   = (name, source) => _fetch(`/nodes/custom/${name}`, { method: "PUT",  ...json({ source }) });
+export const deleteCustomNode   = name => _fetch(`/nodes/custom/${name}`, { method: "DELETE" });

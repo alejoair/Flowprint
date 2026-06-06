@@ -10,20 +10,21 @@ import { A }                   from "./store/actions.js";
 import { useCatalog }          from "./hooks/useCatalog.js";
 import { useGraphPersistence } from "./hooks/useGraphPersistence.js";
 import { useExecution }        from "./hooks/useExecution.js";
+import { useCustomNodes }      from "./hooks/useCustomNodes.js";
 
 import { fromFlowprintGraph, toFlowprintGraph, entryToData } from "./graph/schema.js";
 import { BLANK_GRAPH }         from "./graph/blank.js";
 
-import { FlowprintNode }  from "./components/canvas/FlowprintNode.js";
-import { Sidebar }        from "./components/panels/Sidebar.js";
-import { ConfigPanel }    from "./components/panels/ConfigPanel.js";
-import { ExecutionPanel } from "./components/panels/ExecutionPanel.js";
-import { Toolbar }        from "./components/toolbar/Toolbar.js";
-import { KeybindHandler } from "./components/shared/KeybindHandler.js";
+import { FlowprintNode }      from "./components/canvas/FlowprintNode.js";
+import { Sidebar }            from "./components/panels/Sidebar.js";
+import { ConfigPanel }        from "./components/panels/ConfigPanel.js";
+import { ExecutionPanel }     from "./components/panels/ExecutionPanel.js";
+import { CustomNodeEditor }   from "./components/panels/CustomNodeEditor.js";
+import { Toolbar }            from "./components/toolbar/Toolbar.js";
+import { KeybindHandler }     from "./components/shared/KeybindHandler.js";
 
 const html = htm.bind(React.createElement);
 
-// Must be module-scope so React Flow doesn't remount on every render
 const NODE_TYPES = { flowprint: FlowprintNode };
 
 let _idCounter = 1;
@@ -31,25 +32,23 @@ const uid = () => `node_${_idCounter++}`;
 
 export default function App() {
   const { state, dispatch } = useStore();
-  const catalog     = useCatalog();
-  const persistence = useGraphPersistence();
-  const execution   = useExecution();
+  const { catalog, reloadCatalog } = useCatalog();
+  const persistence  = useGraphPersistence();
+  const execution    = useExecution();
+  const customNodes  = useCustomNodes({ reloadCatalog });
 
-  // React Flow owns node/edge state; our store tracks semantic state
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [rfi,   setRfi] = useState(null);
   const wrapRef = useRef(null);
 
-  // Load graph list on mount
   useEffect(() => { persistence.loadList(); }, []);
 
-  // Load blank graph once catalog arrives
   useEffect(() => {
     if (catalog.length > 0 && nodes.length === 0) loadIntoCanvas(BLANK_GRAPH, null);
   }, [catalog.length]);
 
-  // ── Canvas helpers ────────────────────────────────
+  // ── Canvas ────────────────────────────────────────
 
   function loadIntoCanvas(graph, name) {
     const { rfNodes, rfEdges } = fromFlowprintGraph(graph, catalog);
@@ -60,13 +59,11 @@ export default function App() {
 
   // ── Toolbar handlers ──────────────────────────────
 
-  function handleNew() {
-    loadIntoCanvas(BLANK_GRAPH, null);
-  }
+  function handleNew() { loadIntoCanvas(BLANK_GRAPH, null); }
 
   async function handleOpen(name) {
     try {
-      const graph = await persistence.load(name); // also dispatches GRAPH_LOADED
+      const graph = await persistence.load(name);
       const { rfNodes, rfEdges } = fromFlowprintGraph(graph, catalog);
       setNodes(rfNodes);
       setEdges(rfEdges);
@@ -119,14 +116,12 @@ export default function App() {
   }, [rfi, catalog, setNodes, dispatch]);
 
   const onDragOver = useCallback(e => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
+    e.preventDefault(); e.dataTransfer.dropEffect = "move";
   }, []);
 
-  // Derive selected node from RF state on each render (O(n) but graph is small)
   const selectedNode = nodes.find(n => n.id === state.selectedNodeId) ?? null;
 
-  function onNodeClick(_, node) { dispatch({ type: A.NODE_SELECTED,   payload: node.id }); }
+  function onNodeClick(_, node) { dispatch({ type: A.NODE_SELECTED, payload: node.id }); }
   function onPaneClick()        { dispatch({ type: A.NODE_DESELECTED }); }
 
   function onCfgChange(nodeId, newCfg) {
@@ -153,6 +148,7 @@ export default function App() {
         onDelete=${handleDelete}
         onRun=${handleRun}
         onStop=${execution.cancel}
+        onOpenNodeEditor=${() => dispatch({ type: A.NODE_EDITOR_OPEN })}
       />
 
       <div className="canvas-wrap">
@@ -160,8 +156,7 @@ export default function App() {
 
         <div className="flow-wrap" ref=${wrapRef}>
           <${ReactFlow}
-            nodes=${nodes}
-            edges=${edges}
+            nodes=${nodes} edges=${edges}
             nodeTypes=${NODE_TYPES}
             onNodesChange=${changes => {
               onNodesChange(changes);
@@ -172,24 +167,17 @@ export default function App() {
               if (changes.some(c => c.type !== "select")) dispatch({ type: A.MARK_DIRTY });
             }}
             onConnect=${onConnect}
-            onDrop=${onDrop}
-            onDragOver=${onDragOver}
-            onNodeClick=${onNodeClick}
-            onPaneClick=${onPaneClick}
+            onDrop=${onDrop} onDragOver=${onDragOver}
+            onNodeClick=${onNodeClick} onPaneClick=${onPaneClick}
             onInit=${setRfi}
             fitView=${true}
             deleteKeyCode="Delete"
           >
             <${Controls} />
-            <${MiniMap}
-              nodeColor="#313244"
-              maskColor="rgba(0,0,0,.4)"
-              style=${{ background: "#181825" }}
-            />
-            <${Background}
-              variant=${BackgroundVariant.Dots}
-              color="#45475a" gap=${20} size=${1}
-            />
+            <${MiniMap} nodeColor="#313244" maskColor="rgba(0,0,0,.4)"
+              style=${{ background: "#181825" }} />
+            <${Background} variant=${BackgroundVariant.Dots}
+              color="#45475a" gap=${20} size=${1} />
           </${ReactFlow}>
         </div>
 
@@ -205,6 +193,15 @@ export default function App() {
         <${ExecutionPanel}
           events=${state.execEvents}
           onClose=${() => dispatch({ type: A.EXEC_PANEL_TOGGLE })}
+        />`}
+
+      ${state.nodeEditorOpen && html`
+        <${CustomNodeEditor}
+          customNodes=${state.customNodes}
+          onLoad=${customNodes.loadList}
+          onSave=${customNodes.save}
+          onDelete=${customNodes.remove}
+          onClose=${() => dispatch({ type: A.NODE_EDITOR_CLOSE })}
         />`}
     </div>`;
 }

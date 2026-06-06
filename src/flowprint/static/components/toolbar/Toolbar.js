@@ -5,7 +5,7 @@ const html = htm.bind(React.createElement);
 
 export function Toolbar({
   graphName, graphs, dirty, running,
-  onNew, onOpen, onSave, onDelete, onRun, onStop,
+  onNew, onOpen, onSave, onDelete, onRun, onStop, onOpenNodeEditor,
 }) {
   const [showOpen, setShowOpen] = useState(false);
 
@@ -41,6 +41,9 @@ export function Toolbar({
       </div>
 
       <div className="toolbar-section toolbar-right">
+        <button className="btn" onClick=${onOpenNodeEditor} title="Manage custom nodes">
+          ⚙ Nodes
+        </button>
         ${running
           ? html`<button className="btn btn-danger" onClick=${onStop}>■ Stop</button>`
           : html`<button className="btn btn-run" onClick=${onRun}>▶ Run</button>`}
