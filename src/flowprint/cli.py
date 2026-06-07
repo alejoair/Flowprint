@@ -21,7 +21,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "editor":
-        _run(args.host, args.port, args.reload, open_browser=True)
+        _run(args.host, args.port, args.reload, open_browser=False)
     elif args.command == "serve":
         _run(args.host, args.port, args.reload, open_browser=False)
     else:

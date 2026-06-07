@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.routing import APIRoute, APIWebSocketRoute
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import Response
+from starlette.types import Scope
 from fastmcp import FastMCP
 
 from flowprint.mcp_tools import register as register_mcp_tools
@@ -61,8 +63,16 @@ app.add_middleware(
 # Static frontend — served at /ui/, index at /
 # ---------------------------------------------------------------------------
 
+class _NoCacheStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
 if (_STATIC_DIR / "index.html").exists():
-    app.mount("/ui", StaticFiles(directory=_STATIC_DIR), name="static")
+    app.mount("/ui", _NoCacheStaticFiles(directory=_STATIC_DIR), name="static")
 
     @app.get("/", include_in_schema=False)
     async def _index():
