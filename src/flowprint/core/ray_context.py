@@ -34,7 +34,8 @@ class _ContextActor:
         return self._node_state.get(instance_id, {}).get("__out__")
 
     def set_node_output(self, instance_id: str, value: Any) -> None:
-        self._node_state.setdefault(instance_id, {})["__out__"] = value
+        serialized = value.model_dump() if hasattr(value, "model_dump") else value
+        self._node_state.setdefault(instance_id, {})["__out__"] = serialized
 
     def append_to_list(self, instance_id: str, key: str, value: Any) -> None:
         self._node_state.setdefault(instance_id, {}).setdefault(key, []).append(value)

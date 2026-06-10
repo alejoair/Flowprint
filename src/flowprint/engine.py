@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import ray
 
 from flowprint.core.context import ContextProtocol, LocalContext
@@ -45,8 +47,11 @@ class Engine:
             sub = await self._resolve_inputs(node_id)
             res = await node.execute(node.Inputs(**sub), self.ctx)
             return getattr(res.data, pin)
+        # Outputs are stored as plain dicts (model_dump) for cross-process compat
         produced = await self.ctx.get_node_output(node_id)
-        return getattr(produced, pin) if produced is not None else None
+        if produced is None:
+            return None
+        return produced.get(pin) if isinstance(produced, dict) else getattr(produced, pin)
 
     def _targets(self, node_id: str, pins: list[str]) -> list[str]:
         out = []
@@ -96,9 +101,37 @@ class Engine:
                 for nxt in reversed(self._targets(node_id, ctrl.pins)):
                     stack.append(nxt)
             elif isinstance(ctrl, Fork):
-                for nxt in reversed(self._targets(node_id, ctrl.pins)):
-                    stack.append(nxt)
+                targets = self._targets(node_id, ctrl.pins)
+                if hasattr(self.ctx, "_actor") and len(targets) > 1:
+                    await self._run_fork(node_id, targets)
+                else:
+                    # Fallback: serial (same as Goto)
+                    for nxt in reversed(targets):
+                        stack.append(nxt)
 
         result = await self.ctx.get_var("__result__")
         await self._emit({"event": "graph_complete", "result": result})
         return result
+
+    async def _run_fork(self, node_id: str, targets: list[str]) -> None:
+        """Launch Fork branches as parallel Ray tasks and collect their events."""
+        from flowprint.core.ray_tasks import run_branch
+        from flowprint.graph.registry import CUSTOM_NODES_DIR
+
+        nodes_ser = {
+            nid: (n.__class__.__name__, n.instance_id, dict(n.config))
+            for nid, n in self.nodes.items()
+        }
+        custom_dir = str(CUSTOM_NODES_DIR.resolve()) if CUSTOM_NODES_DIR.exists() else None
+
+        refs = [
+            run_branch.remote(
+                nodes_ser, self.exec_edges, self.data_edges,
+                t, self.ctx._actor, custom_dir,
+            )
+            for t in targets
+        ]
+        branch_results = await asyncio.gather(*refs)
+        for branch_events in branch_results:
+            for event in branch_events:
+                await self._emit(event)
