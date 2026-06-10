@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import ray
+
 from flowprint.core.node import Node
+from flowprint.core.ray_context import RayContextProxy, _ContextActor
 from flowprint.engine import Engine
 from flowprint.graph.registry import NODE_REGISTRY
 from flowprint.graph.schema import Graph
 from flowprint.graph.validation import validate_graph
+
+
+def _ensure_ray() -> None:
+    if not ray.is_initialized():
+        ray.init(ignore_reinit_error=True)
 
 
 def build_engine(graph: Graph, on_event=None) -> Engine:
@@ -32,7 +40,11 @@ def build_engine(graph: Graph, on_event=None) -> Engine:
         (c.from_node, c.from_pin, c.to_node, c.to_pin)
         for c in graph.data_connections()
     ]
-    return Engine(nodes, exec_edges, data_edges, on_event=on_event)
+
+    _ensure_ray()
+    actor = _ContextActor.remote()
+    ctx = RayContextProxy(actor)
+    return Engine(nodes, exec_edges, data_edges, on_event=on_event, ctx=ctx)
 
 
 def find_start(graph: Graph) -> str:

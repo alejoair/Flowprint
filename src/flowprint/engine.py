@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ray
+
 from flowprint.core.context import ContextProtocol, LocalContext
 from flowprint.core.control import Fork, Goto, Repeat, Stop
 from flowprint.core.node import Node
@@ -23,6 +25,8 @@ class Engine:
 
     def cancel(self) -> None:
         self._cancelled = True
+        if hasattr(self.ctx, "_actor"):
+            ray.get(self.ctx._actor.set_cancelled.remote())
 
     async def _emit(self, event: dict) -> None:
         if self._on_event:

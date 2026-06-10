@@ -38,7 +38,8 @@ async def test_sequence_serial():
     graph = Graph.model_validate(SEQUENCE_JSON)
     engine = build_engine(graph)
     await engine.run(find_start(graph))
-    assert engine.ctx.node_state("__log__").get("calls") == ["agent(uno)", "agent(dos)", "agent(tres)"]
+    log = await engine.ctx.get_node_state("__log__")
+    assert log.get("calls") == ["agent(uno)", "agent(dos)", "agent(tres)"]
 
 
 async def test_invalid_exec_pin_rejected():
@@ -82,7 +83,8 @@ async def test_pull_puro_recursivo():
     graph = Graph.model_validate(graph_json)
     engine = build_engine(graph)
     await engine.run(find_start(graph))
-    assert engine.ctx.node_state("__log__").get("calls") == ["agent(hola_mundo)"]
+    log = await engine.ctx.get_node_state("__log__")
+    assert log.get("calls") == ["agent(hola_mundo)"]
 
 
 async def test_foreach_con_itemof():
@@ -109,4 +111,5 @@ async def test_foreach_con_itemof():
     engine = build_engine(graph)
     await engine.ctx.set_var("foreach_items", ["x", "y", "z"])
     await engine.run(find_start(graph))
-    assert engine.ctx.node_state("__log__").get("calls") == ["agent(x)", "agent(y)", "agent(z)"]
+    log = await engine.ctx.get_node_state("__log__")
+    assert log.get("calls") == ["agent(x)", "agent(y)", "agent(z)"]
