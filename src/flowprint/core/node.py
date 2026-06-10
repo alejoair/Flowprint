@@ -6,22 +6,11 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel
 
+from flowprint.core.context import ContextProtocol, LocalContext
 from flowprint.core.control import Control, Stop
 
-
-class ExecutionContext:
-    def __init__(self) -> None:
-        self._variables: dict[str, Any] = {}
-        self._node_state: dict[str, dict] = {}
-
-    def get_var(self, name: str) -> Any:
-        return self._variables.get(name)
-
-    def set_var(self, name: str, value: Any) -> None:
-        self._variables[name] = value
-
-    def node_state(self, instance_id: str) -> dict:
-        return self._node_state.setdefault(instance_id, {})
+# Backward-compat alias — existing imports of ExecutionContext keep working
+ExecutionContext = LocalContext
 
 
 @dataclass
@@ -43,7 +32,7 @@ class Node(ABC):
         self.config = config or {}
 
     @abstractmethod
-    async def execute(self, inputs: BaseModel, ctx: ExecutionContext) -> NodeResult:
+    async def execute(self, inputs: BaseModel, ctx: ContextProtocol) -> NodeResult:
         ...
 
     @classmethod

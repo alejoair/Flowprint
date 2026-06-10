@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from flowprint.core.context import ContextProtocol, LocalContext
 from flowprint.core.control import Fork, Goto, Repeat, Stop
-from flowprint.core.node import ExecutionContext, Node
+from flowprint.core.node import Node
 
 
 class Engine:
@@ -11,16 +12,16 @@ class Engine:
         exec_edges: list,
         data_edges: list,
         on_event=None,
+        ctx: ContextProtocol | None = None,
     ) -> None:
         self.nodes = nodes
         self.exec_edges = exec_edges
         self.data_edges = data_edges
-        self.ctx = ExecutionContext()
+        self.ctx: ContextProtocol = ctx if ctx is not None else LocalContext()
         self._on_event = on_event   # async callable(dict) | None
         self._cancelled = False
 
     def cancel(self) -> None:
-        """Señala al motor que se detenga en la próxima iteración."""
         self._cancelled = True
 
     async def _emit(self, event: dict) -> None:
@@ -40,7 +41,7 @@ class Engine:
             sub = await self._resolve_inputs(node_id)
             res = await node.execute(node.Inputs(**sub), self.ctx)
             return getattr(res.data, pin)
-        produced = self.ctx.node_state(node_id).get("__out__")
+        produced = await self.ctx.get_node_output(node_id)
         return getattr(produced, pin) if produced is not None else None
 
     def _targets(self, node_id: str, pins: list[str]) -> list[str]:
@@ -53,7 +54,7 @@ class Engine:
 
     async def run(self, start_id: str, args: dict | None = None):
         if args:
-            self.ctx.set_var("__args__", args)
+            await self.ctx.set_var("__args__", args)
         stack = [start_id]
         while stack:
             if self._cancelled:
@@ -69,11 +70,11 @@ class Engine:
                 result = await node.execute(node.Inputs(**inputs), self.ctx)
             except Exception as exc:
                 error = {"node": node_id, "error": repr(exc)}
-                self.ctx.set_var("__error__", error)
+                await self.ctx.set_var("__error__", error)
                 await self._emit({"event": "error", **error})
                 return {"__error__": error}
 
-            self.ctx.node_state(node_id)["__out__"] = result.data
+            await self.ctx.set_node_output(node_id, result.data)
             await self._emit({
                 "event": "node_complete",
                 "node": node_id,
@@ -94,6 +95,6 @@ class Engine:
                 for nxt in reversed(self._targets(node_id, ctrl.pins)):
                     stack.append(nxt)
 
-        result = self.ctx.get_var("__result__")
+        result = await self.ctx.get_var("__result__")
         await self._emit({"event": "graph_complete", "result": result})
         return result

@@ -4,8 +4,9 @@ from typing import Any
 
 from pydantic import BaseModel, create_model
 
+from flowprint.core.context import ContextProtocol
 from flowprint.core.control import Stop
-from flowprint.core.node import ExecutionContext, Node, NodeResult
+from flowprint.core.node import Node, NodeResult
 
 
 class End(Node):
@@ -30,10 +31,10 @@ class End(Node):
                 **{n: (Any, None) for n in names},
             )
 
-    async def execute(self, inputs: Inputs, ctx: ExecutionContext) -> NodeResult:
+    async def execute(self, inputs: Inputs, ctx: ContextProtocol) -> NodeResult:
         names = self.config.get("output_names", [])
         if names:
-            ctx.set_var("__result__", {n: getattr(inputs, n) for n in names})
+            await ctx.set_var("__result__", {n: getattr(inputs, n) for n in names})
         else:
-            ctx.set_var("__result__", inputs.result)
+            await ctx.set_var("__result__", inputs.result)
         return NodeResult(self.Outputs(), Stop())

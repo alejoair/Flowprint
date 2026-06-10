@@ -4,8 +4,9 @@ from typing import Any
 
 from pydantic import BaseModel, create_model
 
+from flowprint.core.context import ContextProtocol
 from flowprint.core.control import Goto
-from flowprint.core.node import ExecutionContext, Node, NodeResult
+from flowprint.core.node import Node, NodeResult
 
 
 class Start(Node):
@@ -30,8 +31,8 @@ class Start(Node):
                 **{n: (Any, None) for n in names},
             )
 
-    async def execute(self, inputs: Inputs, ctx: ExecutionContext) -> NodeResult:
-        args = ctx.get_var("__args__") or {}
+    async def execute(self, inputs: Inputs, ctx: ContextProtocol) -> NodeResult:
+        args = await ctx.get_var("__args__") or {}
         names = self.config.get("input_names", [])
         outputs = {n: args.get(n) for n in names}
         return NodeResult(self.Outputs(**outputs), Goto(["out"]))

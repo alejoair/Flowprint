@@ -107,6 +107,6 @@ async def test_foreach_con_itemof():
     }
     graph = Graph.model_validate(graph_json)
     engine = build_engine(graph)
-    engine.ctx.set_var("foreach_items", ["x", "y", "z"])
+    await engine.ctx.set_var("foreach_items", ["x", "y", "z"])
     await engine.run(find_start(graph))
     assert engine.ctx.node_state("__log__").get("calls") == ["agent(x)", "agent(y)", "agent(z)"]
