@@ -54,6 +54,8 @@ def find_start(graph: Graph) -> str:
     return starts[0]
 
 
-async def run_graph(graph: Graph, args: dict | None = None):
+async def run_graph(graph: Graph | dict, args: dict | None = None):
+    if isinstance(graph, dict):
+        graph = Graph.model_validate(graph)
     engine = build_engine(graph)
     return await engine.run(find_start(graph), args)
