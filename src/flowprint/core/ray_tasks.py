@@ -16,11 +16,12 @@ def run_branch(
     start_id: str,
     actor_handle: ray.actor.ActorHandle,
     custom_nodes_dir: str | None,
-) -> list[dict]:
+) -> None:
     """Execute one Fork branch as a Ray task, sharing the parent's context actor.
 
-    Returns the list of events emitted during execution so the parent engine
-    can re-emit them in order after all branches complete.
+    Events are pushed directly to the actor's event queue instead of being
+    returned, so nested forks and deeply-pipelined branches all funnel through
+    the same queue without extra coordination.
     """
     from flowprint.core.ray_context import RayContextProxy
     from flowprint.engine import Engine
@@ -34,13 +35,10 @@ def run_branch(
         cls = NODE_REGISTRY[type_name]
         nodes[nid] = cls(instance_id, config)
 
-    events: list[dict] = []
+    ctx = RayContextProxy(actor_handle)
 
     async def on_event(event: dict) -> None:
-        events.append(event)
+        await ctx.push_event(event)
 
-    ctx = RayContextProxy(actor_handle)
     engine = Engine(nodes, exec_edges, data_edges, ctx=ctx, on_event=on_event)
-
     asyncio.run(engine.run(start_id))
-    return events

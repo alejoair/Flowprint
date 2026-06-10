@@ -12,6 +12,7 @@ class ContextProtocol(Protocol):
     async def get_node_output(self, instance_id: str) -> Any: ...
     async def set_node_output(self, instance_id: str, value: Any) -> None: ...
     async def append_to_list(self, instance_id: str, key: str, value: Any) -> None: ...
+    async def drain_events(self) -> list[dict]: ...
 
 
 class LocalContext:
@@ -44,9 +45,5 @@ class LocalContext:
     async def append_to_list(self, instance_id: str, key: str, value: Any) -> None:
         self._node_state.setdefault(instance_id, {}).setdefault(key, []).append(value)
 
-    # Synchronous shims — used only by test_e2e.py assertions after engine.run()
-    def node_state(self, instance_id: str) -> dict:
-        return self._node_state.setdefault(instance_id, {})
-
-    def get_var_sync(self, name: str) -> Any:
-        return self._variables.get(name)
+    async def drain_events(self) -> list[dict]:
+        return []

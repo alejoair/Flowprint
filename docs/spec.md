@@ -198,6 +198,12 @@ nodos necesitan (el bit del FlipFlop, un contador, el historial de un agente). L
 motor para guardar el estado interno de nodos concretos; los nodos no lo usan para
 hablarse entre sí.
 
+El contexto es un **Ray Actor** (`_ContextActor`) — un proceso separado gestionado por Ray.
+Las llamadas de lectura/escritura son remotas y asíncronas por diseño. Esto garantiza
+consistencia cuando múltiples ramas del grafo corren en paralelo (Fork), ya que Ray serializa
+todas las llamadas al actor. El motor accede al actor vía `RayContextProxy`, que implementa
+`ContextProtocol` con la misma interfaz que `LocalContext` (usada en tests sin Ray).
+
 **Decisión: nodos de variable Get/Set (como Unreal).** Existen nodos `Get` y `Set` que
 acceden a variables nombradas del grafo. Un `Set` escribe, un `Get` lee, en cualquier
 punto. Siguen siendo nodos visibles en el grafo, no un canal lateral invisible: incluso el
@@ -425,11 +431,11 @@ introspeccionable.
 **Firma de `execute`.**
 
 ```python
-async def execute(self, inputs: BaseModel, ctx: ExecutionContext) -> NodeResult: ...
+async def execute(self, inputs: BaseModel, ctx: ContextProtocol) -> NodeResult: ...
 ```
 
 - `inputs`: modelo Pydantic ya validado (la firma de entrada).
-- `ctx`: el contexto de ejecución externo.
+- `ctx`: el contexto de ejecución — una implementación de `ContextProtocol`.
 - Retorna `NodeResult(data: BaseModel, control: Control)`, donde `data` son las salidas de
   datos y `control` es una **instrucción de control** (ver sección 9), no un string de pin.
 
@@ -438,11 +444,18 @@ async def execute(self, inputs: BaseModel, ctx: ExecutionContext) -> NodeResult:
 de `Instance.config` del JSON. Es el puente uniforme entre el grafo y el nodo; ningún nodo
 usa constructores ad hoc.
 
-**Acceso al contexto.** El `ExecutionContext` se pasa como argumento a `execute`. Expone:
+**Acceso al contexto.** El `ContextProtocol` se pasa como argumento a `execute`. Es una
+interfaz async — todos sus métodos se llaman con `await`. En producción es un Ray Actor
+distribuido (`RayContextProxy`); en tests es `LocalContext` in-process. El código del nodo
+no necesita saber cuál es.
 
-- `get_var(name)` / `set_var(name, value)`: variables del grafo (nodos Get/Set).
-- `node_state(instance_id)`: estado oculto de un nodo concreto (bit del FlipFlop,
-  contador), aislado por `instance_id`. El estado vive aquí, **no** en el objeto `Node`.
+- `await get_var(name)` / `await set_var(name, value)`: variables del grafo (nodos Get/Set).
+- `await get_node_state(instance_id)` → `dict` (copia): estado oculto de un nodo concreto
+  (bit del FlipFlop, contador), aislado por `instance_id`. El estado vive aquí, **no** en
+  el objeto `Node`. Devuelve copia — nunca mutar el dict retornado.
+- `await update_node_state(instance_id, patch)`: aplica un merge patch al estado del nodo.
+- `await append_to_list(instance_id, key, value)`: append atómico a una lista dentro del
+  estado (para nodos que acumulan historial en un contexto potencialmente distribuido).
 
 **Distinción puro vs efecto.** El flag `is_pure`. Un nodo puro no tiene pines de ejecución,
 se evalúa por pull y devuelve `Stop()` como control (nunca participa del flujo de
@@ -501,8 +514,9 @@ ForEach probados de extremo a extremo).
 **Modelo de frentes como PILA (LIFO).** El motor mantiene una pila de frentes de
 ejecución. Toma el frente superior, ejecuta su nodo, y apila los destinos que produce. La
 consecuencia es que **el frente actual se agota antes de retomar los pendientes**, lo que
-da el comportamiento serial de Blueprint. (El día que se añada el nodo paralelo, ese
-procesará varios frentes a la vez en lugar de en pila; el modelo ya lo permite.)
+da el comportamiento serial de Blueprint. La excepción es `Fork`: cuando el nodo `Parallel`
+emite esta instrucción, el motor lanza todas las ramas como Ray tasks concurrentes en lugar
+de apilarlas.
 
 **Evaluación pull SIN caché (modelo Unreal).** Antes de ejecutar un nodo, el motor
 resuelve sus entradas de datos recorriendo hacia atrás las conexiones de datos
@@ -523,8 +537,9 @@ interpreta un vocabulario cerrado de cuatro:
 - `Repeat(pins)`: activar esos pines y **reencolar al nodo emisor**. Loops (ForEach,
   ForLoop, WhileLoop) lo usan para volver a sí mismos.
 - `Stop()`: esta rama termina aquí. End, loop agotado, y todos los nodos puros.
-- `Fork(pins)`: activar en paralelo. No se usa en v1; deja preparado el nodo `gather` sin
-  cambiar el vocabulario.
+- `Fork(pins)`: activar en paralelo como Ray tasks independientes. El nodo `Parallel` lo
+  usa para lanzar N ramas concurrentes; el motor espera a que todas terminen antes de
+  continuar.
 
 El vocabulario es **cerrado** (4 casos que no crecen); los tipos de nodo son **abiertos**.
 El motor discrimina sobre el vocabulario, no sobre los tipos, así que añadir ForLoop,
@@ -541,6 +556,14 @@ la "2".
 (el motor reencola al loop y luego su cuerpo; por LIFO el cuerpo corre antes y, al agotarse,
 el motor vuelve al loop) y `Goto(["completed"])` al terminar. El estado de iteración vive en
 el contexto. Funciona porque el motor **no asume grafos acíclicos** (supuesto de 4.6).
+
+**Fork paralelo con Ray.** Cuando el motor encuentra `Fork(pins)` y hay más de un destino,
+llama a `_run_fork()`. Éste serializa todos los nodos del grafo (nombre de tipo + config),
+lanza una `run_branch` Ray task por cada rama con `ray.remote`, y espera su finalización
+con `asyncio.gather`. Cada tarea reconstruye los nodos en el worker, crea un `RayContextProxy`
+sobre el mismo `_ContextActor` compartido, y corre un sub-Engine desde su nodo inicial.
+Los eventos de cada rama llegan en batch al terminar y se re-emiten por el callback
+`on_event` del motor padre. El contexto compartido garantiza coherencia entre ramas.
 
 **Arranque y fin.** El motor arranca apilando el `Start` (sin entrada de ejecución, expone
 los argumentos del grafo). Termina cuando la pila se vacía; el `End` guarda el resultado

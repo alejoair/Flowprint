@@ -23,7 +23,8 @@ src/flowprint/nodes/
 
 ```python
 from pydantic import BaseModel
-from flowprint.core.node import Node, NodeResult, ExecutionContext
+from flowprint.core.context import ContextProtocol
+from flowprint.core.node import Node, NodeResult
 from flowprint.core.control import Goto
 
 class MiAgente(Node):
@@ -38,7 +39,7 @@ class MiAgente(Node):
     exec_outputs = ("out",)
     is_pure = False
 
-    async def execute(self, inputs: Inputs, ctx: ExecutionContext) -> NodeResult:
+    async def execute(self, inputs: Inputs, ctx: ContextProtocol) -> NodeResult:
         resultado = await llamar_a_mi_api(inputs.prompt, inputs.temperatura)
         return NodeResult(self.Outputs(respuesta=resultado), Goto(["out"]))
 ```
@@ -94,6 +95,7 @@ Ejemplos según el tipo de nodo:
 | Nodo normal | `("in",)` | `("out",)` |
 | Bifurcación | `("in",)` | `("true", "false")` |
 | Secuencia | `("in",)` | `("1", "2", "3")` |
+| Paralelo | `("in",)` | `("1", "2", ..., "N")` |
 | Loop | `("in",)` | `("body", "completed")` |
 | Punto de entrada (Start) | `()` | `("out",)` |
 | Punto de salida (End) | `("in",)` | `()` |
@@ -115,18 +117,40 @@ Un nodo puro puede reevaluarse varias veces (por ejemplo dentro de un loop).
 ### `execute`
 
 ```python
-async def execute(self, inputs: Inputs, ctx: ExecutionContext) -> NodeResult:
+async def execute(self, inputs: Inputs, ctx: ContextProtocol) -> NodeResult:
     ...
 ```
 
 - Siempre `async def`, aunque no uses `await`.
 - `inputs` llega ya validado como instancia de tu `Inputs`.
-- `ctx` expone:
-  - `ctx.get_var(nombre)` / `ctx.set_var(nombre, valor)` — variables del grafo
-  - `ctx.node_state(self.instance_id)` — dict persistente privado del nodo
-    (para guardar estado entre ejecuciones dentro del mismo grafo, como un
-    contador o el índice actual de un loop)
+- `ctx` es un `ContextProtocol` — una interfaz async que oculta si el contexto
+  corre en memoria local o como un Ray Actor distribuido. Todos sus métodos son
+  `async` y deben llamarse con `await`.
 - Devuelve `NodeResult(data, control)`.
+
+### Métodos de `ctx`
+
+```python
+# Variables del grafo (compartidas entre todos los nodos)
+valor = await ctx.get_var("nombre")
+await ctx.set_var("nombre", valor)
+
+# Estado privado del nodo (persiste entre ejecuciones dentro del mismo grafo)
+st = await ctx.get_node_state(self.instance_id)          # retorna dict (copia)
+await ctx.update_node_state(self.instance_id, {"k": v})  # merge patch
+
+# Append atómico a una lista dentro del estado de un nodo
+await ctx.append_to_list("__log__", "calls", "valor")
+```
+
+El estado de nodo (`get_node_state` / `update_node_state`) no es una referencia
+mutable — `get_node_state` devuelve una **copia**. El patrón correcto es:
+
+```python
+st = await ctx.get_node_state(self.instance_id)
+nuevo_n = st.get("n", 0) + 1
+await ctx.update_node_state(self.instance_id, {"n": nuevo_n})
+```
 
 ### `NodeResult` y las instrucciones de control
 
@@ -140,9 +164,10 @@ NodeResult(self.Outputs(...), instrucción)
 | `Goto(["true"])` | bifurcar hacia la salida `true` |
 | `Goto(["1", "2", "3"])` | activar varias salidas en orden (Sequence) |
 | `Repeat(["body"])` | activar la salida y re-encolarse (loops) |
+| `Fork(["1", "2"])` | activar salidas en paralelo como Ray tasks |
 | `Stop()` | esta rama termina aquí; obligatorio en nodos puros |
 
-El vocabulario es cerrado: solo existen estas cuatro instrucciones. El motor
+El vocabulario es cerrado: solo existen estas cinco instrucciones. El motor
 las interpreta sin conocer el tipo del nodo.
 
 ### `config`
@@ -162,7 +187,8 @@ Se definen en el JSON del grafo bajo `Instance.config`, no llegan por pines.
 
 ```python
 from pydantic import BaseModel
-from flowprint.core.node import Node, NodeResult, ExecutionContext
+from flowprint.core.context import ContextProtocol
+from flowprint.core.node import Node, NodeResult
 from flowprint.core.control import Stop
 
 class MayusculasNode(Node):
@@ -174,7 +200,7 @@ class MayusculasNode(Node):
 
     is_pure = True
 
-    async def execute(self, inputs: Inputs, ctx: ExecutionContext) -> NodeResult:
+    async def execute(self, inputs: Inputs, ctx: ContextProtocol) -> NodeResult:
         return NodeResult(self.Outputs(resultado=inputs.texto.upper()), Stop())
 ```
 
@@ -182,7 +208,8 @@ class MayusculasNode(Node):
 
 ```python
 from pydantic import BaseModel
-from flowprint.core.node import Node, NodeResult, ExecutionContext
+from flowprint.core.context import ContextProtocol
+from flowprint.core.node import Node, NodeResult
 from flowprint.core.control import Goto
 
 class ContadorNode(Node):
@@ -196,20 +223,23 @@ class ContadorNode(Node):
     exec_outputs = ("out",)
     is_pure = False
 
-    async def execute(self, inputs: Inputs, ctx: ExecutionContext) -> NodeResult:
-        st = ctx.node_state(self.instance_id)
-        st["n"] = st.get("n", 0) + 1
-        return NodeResult(self.Outputs(n=st["n"]), Goto(["out"]))
+    async def execute(self, inputs: Inputs, ctx: ContextProtocol) -> NodeResult:
+        st = await ctx.get_node_state(self.instance_id)
+        n = st.get("n", 0) + 1
+        await ctx.update_node_state(self.instance_id, {"n": n})
+        return NodeResult(self.Outputs(n=n), Goto(["out"]))
 ```
 
-El estado (`st`) persiste entre ejecuciones dentro de la misma corrida del
-grafo y es privado a esta instancia concreta.
+El estado persiste entre ejecuciones dentro de la misma corrida del grafo y es
+privado a esta instancia concreta. El contexto es un Ray Actor, así que
+`get_node_state` devuelve una copia — nunca mutes el dict retornado directamente.
 
 ## Ejemplo: nodo que bifurca
 
 ```python
 from pydantic import BaseModel
-from flowprint.core.node import Node, NodeResult, ExecutionContext
+from flowprint.core.context import ContextProtocol
+from flowprint.core.node import Node, NodeResult
 from flowprint.core.control import Goto
 
 class EsLargoNode(Node):
@@ -224,7 +254,7 @@ class EsLargoNode(Node):
     exec_outputs = ("si", "no")
     is_pure = False
 
-    async def execute(self, inputs: Inputs, ctx: ExecutionContext) -> NodeResult:
+    async def execute(self, inputs: Inputs, ctx: ContextProtocol) -> NodeResult:
         pin = "si" if len(inputs.texto) > inputs.limite else "no"
         return NodeResult(self.Outputs(), Goto([pin]))
 ```

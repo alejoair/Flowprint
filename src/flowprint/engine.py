@@ -114,7 +114,7 @@ class Engine:
         return result
 
     async def _run_fork(self, node_id: str, targets: list[str]) -> None:
-        """Launch Fork branches as parallel Ray tasks and collect their events."""
+        """Launch Fork branches as parallel Ray tasks and drain their events."""
         from flowprint.core.ray_tasks import run_branch
         from flowprint.graph.registry import CUSTOM_NODES_DIR
 
@@ -131,7 +131,6 @@ class Engine:
             )
             for t in targets
         ]
-        branch_results = await asyncio.gather(*refs)
-        for branch_events in branch_results:
-            for event in branch_events:
-                await self._emit(event)
+        await asyncio.gather(*refs)
+        for event in await self.ctx.drain_events():
+            await self._emit(event)
