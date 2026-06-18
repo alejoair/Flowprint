@@ -4,8 +4,9 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from flowprint.core.context import ContextProtocol
 from flowprint.core.control import Stop
-from flowprint.core.node import ExecutionContext, Node, NodeResult
+from flowprint.core.node import Node, NodeResult
 
 
 class GetVar(Node):
@@ -21,5 +22,5 @@ class GetVar(Node):
 
     is_pure = True
 
-    async def execute(self, inputs: Inputs, ctx: ExecutionContext) -> NodeResult:
-        return NodeResult(self.Outputs(value=ctx.get_var(self.config.get("var"))), Stop())
+    async def execute(self, inputs: Inputs, ctx: ContextProtocol) -> NodeResult:
+        return NodeResult(self.Outputs(value=await ctx.get_var(self.config.get("var"))), Stop())

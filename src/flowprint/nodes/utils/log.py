@@ -4,8 +4,9 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from flowprint.core.context import ContextProtocol
 from flowprint.core.control import Goto
-from flowprint.core.node import ExecutionContext, Node, NodeResult
+from flowprint.core.node import Node, NodeResult
 
 
 class Log(Node):
@@ -25,6 +26,6 @@ class Log(Node):
     exec_outputs = ("out",)
     is_pure = False
 
-    async def execute(self, inputs: Inputs, ctx: ExecutionContext) -> NodeResult:
-        ctx.node_state("__logs__").setdefault("entries", []).append(str(inputs.message))
+    async def execute(self, inputs: Inputs, ctx: ContextProtocol) -> NodeResult:
+        await ctx.append_to_list("__logs__", "entries", str(inputs.message))
         return NodeResult(self.Outputs(message=inputs.message), Goto(["out"]))

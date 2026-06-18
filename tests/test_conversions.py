@@ -135,4 +135,5 @@ async def test_grafo_con_tostr_explicito():
     engine = build_engine(graph)
     await engine.run(find_start(graph))
     # Equals("x","x") → True → ToStr → "True" → AgentEcho
-    assert engine.ctx.node_state("__log__").get("calls") == ["agent(True)"]
+    log = await engine.ctx.get_node_state("__log__")
+    assert log.get("calls") == ["agent(True)"]

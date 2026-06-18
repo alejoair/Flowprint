@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from flowprint.core.context import ContextProtocol
 from flowprint.core.control import Stop
-from flowprint.core.node import ExecutionContext, Node, NodeResult
+from flowprint.core.node import Node, NodeResult
 
 
 class ItemOf(Node):
@@ -19,6 +20,7 @@ class ItemOf(Node):
 
     is_pure = True
 
-    async def execute(self, inputs: Inputs, ctx: ExecutionContext) -> NodeResult:
+    async def execute(self, inputs: Inputs, ctx: ContextProtocol) -> NodeResult:
         fid = self.config.get("foreach_id")
-        return NodeResult(self.Outputs(value=ctx.node_state(fid).get("current", "")), Stop())
+        st = await ctx.get_node_state(fid)
+        return NodeResult(self.Outputs(value=st.get("current", "")), Stop())

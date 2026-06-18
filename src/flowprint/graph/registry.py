@@ -7,6 +7,7 @@ from pathlib import Path
 from flowprint.core.node import Node
 from flowprint.nodes.agents.echo import AgentEcho
 from flowprint.nodes.control.branch import Branch
+from flowprint.nodes.control.parallel import Parallel
 from flowprint.nodes.control.doonce import DoOnce
 from flowprint.nodes.control.end import End
 from flowprint.nodes.control.flipflop import FlipFlop
@@ -41,6 +42,7 @@ NODE_REGISTRY: dict[str, type[Node]] = {
     "Start": Start,
     "End": End,
     "Sequence": Sequence,
+    "Parallel": Parallel,
     "ForEach": ForEach,
     "ForLoop": ForLoop,
     "WhileLoop": WhileLoop,

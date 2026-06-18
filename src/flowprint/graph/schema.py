@@ -36,6 +36,7 @@ class VisualMeta(BaseModel):
 
 class Graph(BaseModel):
     schema_version: str = "1.0"
+    name: str | None = None
     signature: GraphSignature = Field(default_factory=GraphSignature)
     variables: list[Variable] = Field(default_factory=list)
     instances: list[Instance]

@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Install all dependencies
+# Install all dependencies (includes Ray)
 pip install -e ".[dev]"
 
 # Run all tests (must use python -m pytest, not bare pytest)
@@ -38,15 +38,17 @@ Flowprint is a multi-agent orchestration engine inspired by Unreal Engine's Blue
 
 The engine (`src/flowprint/engine.py`) maintains a LIFO stack of "execution fronts." On each step, it pops a node, resolves its data inputs via **pull evaluation**, executes the node, and pushes the resulting output pins back onto the stack.
 
+**Execution context.** The engine uses a `ContextProtocol` interface backed by a Ray Actor (`_ContextActor`) in production and `LocalContext` in tests. All context methods are `async`. The Ray Actor is the authoritative store for variables and node state — thread-safe by Ray's single-threaded actor design.
+
 **Two node categories:**
-- **Effect nodes** (`is_pure=False`): Executed once when reached by execution flow; output stored in `ExecutionContext`.
+- **Effect nodes** (`is_pure=False`): Executed once when reached by execution flow; output stored in context via `set_node_output`.
 - **Pure nodes** (`is_pure=True`): Evaluated on-demand (pull mechanism) each time an effect node reads their output. Not cached — this is intentional to support correct loop semantics (e.g., `ItemOf` returning a different element each iteration).
 
 **Control instructions** (returned by every node in `NodeResult.control`):
 - `Goto(pins)` — activate listed execution pins in serial order
 - `Repeat(pins)` — activate pins AND re-enqueue the current node (used by `ForEach`)
 - `Stop()` — terminate this execution path (all pure nodes return this)
-- `Fork(pins)` — parallel activation (reserved, not yet used)
+- `Fork(pins)` — launch branches as parallel Ray tasks; engine waits for all to complete
 
 ### Graph Lifecycle
 

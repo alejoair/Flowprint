@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from flowprint.core.context import ContextProtocol
 from flowprint.core.control import Goto, Repeat
-from flowprint.core.node import ExecutionContext, Node, NodeResult
+from flowprint.core.node import Node, NodeResult
 
 
 class ForLoop(Node):
@@ -19,11 +20,12 @@ class ForLoop(Node):
     exec_outputs = ("body", "completed")
     is_pure = False
 
-    async def execute(self, inputs: Inputs, ctx: ExecutionContext) -> NodeResult:
-        st = ctx.node_state(self.instance_id)
-        i = st.get("index", inputs.start)
+    async def execute(self, inputs: Inputs, ctx: ContextProtocol) -> NodeResult:
+        st = await ctx.get_node_state(self.instance_id)
+        # None sentinel means "not started yet" — use inputs.start
+        i = st.get("index") if st.get("index") is not None else inputs.start
         if i < inputs.end:
-            st["index"] = i + 1
+            await ctx.update_node_state(self.instance_id, {"index": i + 1})
             return NodeResult(self.Outputs(index=i), Repeat(["body"]))
-        st.pop("index", None)
+        await ctx.update_node_state(self.instance_id, {"index": None})
         return NodeResult(self.Outputs(index=i), Goto(["completed"]))

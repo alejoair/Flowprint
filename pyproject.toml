@@ -12,6 +12,7 @@ dependencies = [
     "fastapi>=0.111",
     "uvicorn[standard]>=0.29",
     "fastmcp>=2.0",
+    "ray[default]>=2.10",
 ]
 
 [project.optional-dependencies]

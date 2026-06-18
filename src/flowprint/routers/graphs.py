@@ -39,7 +39,9 @@ def _load_graph_file(name: str) -> dict:
     return json.loads(path.read_text())
 
 
-def _parse_graph(graph_dict: dict) -> Graph:
+def _parse_graph(graph_dict: dict, name: str | None = None) -> Graph:
+    if name:
+        graph_dict = {**graph_dict, "name": name}
     try:
         return Graph.model_validate(graph_dict)
     except Exception as e:
@@ -151,7 +153,7 @@ async def graph_run_ws(ws: WebSocket):
 @router.post("/graphs/{name}/run")
 async def saved_graph_run(name: str, body: dict | None = None):
     stored = _load_graph_file(name)
-    graph = _parse_graph(stored["graph"])
+    graph = _parse_graph(stored["graph"], name)
     try:
         return await run_graph(graph, (body or {}).get("args"))
     except ValueError as e:
@@ -171,7 +173,7 @@ async def saved_graph_run_ws(name: str, ws: WebSocket):
         await ws.send_json({"event": "error", "error": e.detail})
         await ws.close()
         return
-    await _execute_ws(ws, stored["graph"], payload.get("args"))
+    await _execute_ws(ws, stored["graph"], payload.get("args"), name)
 
 
 # ---------------------------------------------------------------------------
@@ -179,11 +181,11 @@ async def saved_graph_run_ws(name: str, ws: WebSocket):
 # ---------------------------------------------------------------------------
 
 
-async def _execute_ws(ws: WebSocket, graph_dict: dict, args: dict | None) -> None:
+async def _execute_ws(ws: WebSocket, graph_dict: dict, args: dict | None, name: str | None = None) -> None:
     try:
-        graph = Graph.model_validate(graph_dict)
-    except Exception as e:
-        await ws.send_json({"event": "error", "error": str(e)})
+        graph = _parse_graph(graph_dict, name)
+    except HTTPException as e:
+        await ws.send_json({"event": "error", "error": e.detail})
         await ws.close()
         return
 
